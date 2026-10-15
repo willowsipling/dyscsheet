@@ -60,7 +60,7 @@
           <button id="print">Print / PDF</button>
           <button id="newSheet" class="danger">New sheet</button>
         </div>
-        <label class="toggle"><input type="checkbox" id="showFinished" checked> Finished math</label>
+        <label class="toggle"><input type="checkbox" id="showFinished"> Finished math</label>
         <span class="zoom">Zoom
           <button id="zoomOut" title="Make the grid smaller" aria-label="Zoom out">−</button>
           <button id="zoomReset" title="Back to 100%">100%</button>
@@ -80,7 +80,7 @@
     </div>
   </div>
 
-  <aside class="compiled" id="compiled" aria-label="Finished math">
+  <aside class="compiled" id="compiled" aria-label="Finished math" hidden>
     <div class="handle" id="handle" title="Drag to resize"></div>
     <div class="compiled-head">
       <div class="wrap">
@@ -113,24 +113,75 @@
   };
   const HL_COLORS = [['khaki', 'Yellow'], ['pink', 'Pink'], ['lightblue', 'Blue'], ['palegreen', 'Green']];
   const SYMBOLS = [
-    ['x̄', 'x bar (sample mean)'], ['p̂', 'p hat (sample proportion)'], ['ŷ', 'y hat (predicted y)'],
-    ['μ', 'mu (population mean)'], ['σ', 'sigma (population standard deviation)'], ['Σ', 'sum'],
-    ['α', 'alpha'], ['β', 'beta'], ['χ', 'chi'], ['ρ', 'rho'], ['λ', 'lambda'], ['θ', 'theta'], ['π', 'pi'],
-    ['±', 'plus or minus'], ['×', 'times'], ['÷', 'divided by'], ['·', 'times (dot)'],
-    ['≤', 'less than or equal'], ['≥', 'greater than or equal'], ['≠', 'not equal'], ['≈', 'approximately'], ['∞', 'infinity'],
+    ['x̄', 'x bar (sample mean)'],
+    ['p̂', 'p hat (sample proportion)'],
+    ['ŷ', 'y hat (predicted y)'],
+    ['tα', 't alpha (critical t-value)'],
+    ['μ', 'mu (population mean)'],
+    ['σ', 'sigma (population standard deviation)'],
+    ['Σ', 'sum'],
+    ['α', 'alpha'],
+    ['β', 'beta'],
+    ['χ', 'chi'],
+    ['ρ', 'rho'],
+    ['λ', 'lambda'],
+    ['θ', 'theta'],
+    ['π', 'pi'],
+    ['±', 'plus or minus'],
+    ['×', 'times'],
+    ['÷', 'divided by'],
+    ['·', 'times (dot)'],
+    ['≤', 'less than or equal'],
+    ['≥', 'greater than or equal'],
+    ['≠', 'not equal'],
+    ['≈', 'approximately'],
+    ['∞', 'infinity'],
   ];
 
   // How each cell's contents become MathJax (TeX) code. Anything not listed passes through as-is.
   const TEX = {
     ' ': '\\;',
-    '−': '-', '-': '-', '×': '\\times', '*': '\\times', '÷': '\\div', '·': '\\cdot',
-    '≤': '\\le', '≥': '\\ge', '≠': '\\ne', '≈': '\\approx', '±': '\\pm', '∞': '\\infty',
-    'μ': '\\mu', 'σ': '\\sigma', 'Σ': '\\sum', 'α': '\\alpha', 'β': '\\beta', 'χ': '\\chi',
-    'ρ': '\\rho', 'λ': '\\lambda', 'π': '\\pi', 'θ': '\\theta',
-    'x̄': '\\bar{x}', 'p̂': '\\hat{p}', 'ŷ': '\\hat{y}',
-    '{': '\\{', '}': '\\}', '%': '\\%', '$': '\\$', '#': '\\#', '&': '\\&', '_': '\\_',
-    '^': '\\hat{}', '\\': '\\backslash', '~': '\\sim',
+    '−': '-',
+    '-': '-',
+    '×': '\\times',
+    '*': '\\times',
+    '÷': '\\div',
+    '·': '\\cdot',
+    '≤': '\\le',
+    '≥': '\\ge',
+    '≠': '\\ne',
+    '≈': '\\approx',
+    '±': '\\pm',
+    '∞': '\\infty',
+    'μ': '\\mu',
+    'σ': '\\sigma',
+    'Σ': '\\sum',
+    'α': '\\alpha',
+    'β': '\\beta',
+    'χ': '\\chi',
+    'ρ': '\\rho',
+    'λ': '\\lambda',
+    'π': '\\pi',
+    'θ': '\\theta',
+    'x̄': '\\bar{x}',
+    'p̂': '\\hat{p}',
+    'ŷ': '\\hat{y}',
+    'tα': 't_{\\alpha}',
+    '{': '\\{',
+    '}': '\\}',
+    '%': '\\%',
+    '$': '\\$',
+    '#': '\\#',
+    '&': '\\&',
+    '_': '\\_',
+    '^': '\\hat{}',
+    '\\': '\\backslash',
+    '~': '\\sim',
   };
+
+  // Symbols that need HTML to look right in the grid and on their button (no Unicode subscript α exists).
+  const SHOW = { 'tα': 't<sub>α</sub>' };
+  const show = (ch) => SHOW[ch] || esc(ch);
 
   // ---------- State ----------
   // A line is a band of rows that share columns. Row 0 is the main row;
@@ -143,7 +194,7 @@
   let armed = null;          // tool waiting for a drag
   let hlColor = 'khaki';
   let showCode = false;
-  let showFinished = true;
+  let showFinished = false;
   let dragging = false;
   let mjReady = false;
   const history = [];
@@ -715,7 +766,7 @@
       if (extra[r][c]) k.push(...extra[r][c]);
       if (hl[r][c]) k.push('hl-' + hl[r][c]);
       if (ch === ' ') k.push('is-space');
-      cells += `<div class="${k.join(' ')}" data-line="${li}" data-row="${r}" data-col="${c}" style="grid-row:${r + 1};grid-column:${c + 1}"><span>${ch === ' ' ? '␣' : esc(ch)}</span></div>`;
+      cells += `<div class="${k.join(' ')}" data-line="${li}" data-row="${r}" data-col="${c}" style="grid-row:${r + 1};grid-column:${c + 1}"><span>${ch === ' ' ? '␣' : show(ch)}</span></div>`;
     }));
     const decos = line.wraps.map((w) => decoHTML(line, w)).join('');
     return `<section class="line" data-line="${li}">
@@ -1023,7 +1074,7 @@
   });
 
   $('symbols').innerHTML = SYMBOLS.map(([s, name]) =>
-    `<button class="sym" data-sym="${esc(s)}" title="${esc(name)}" aria-label="${esc(name)}">${esc(s)}</button>`
+    `<button class="sym" data-sym="${esc(s)}" title="${esc(name)}" aria-label="${esc(name)}">${show(s)}</button>`
   ).join('');
   $('symbols').addEventListener('pointerdown', (e) => { if (e.target.closest('button.sym')) e.preventDefault(); });
   $('symbols').addEventListener('click', (e) => {
@@ -1155,7 +1206,7 @@
       if (old && Array.isArray(old.lines) && old.lines.length) { doc = null; doc = migrateV1(old); }
     }
     const prefs = JSON.parse(localStorage.getItem(PREFS) || 'null');
-    if (prefs) { showCode = !!prefs.showCode; showFinished = prefs.showFinished !== false; if (ZOOMS.includes(prefs.zoom)) zoom = prefs.zoom; if (prefs.panel) $('compiled').style.height = prefs.panel; }
+    if (prefs) { showCode = !!prefs.showCode; showFinished = !!prefs.showFinished; if (ZOOMS.includes(prefs.zoom)) zoom = prefs.zoom; if (prefs.panel) $('compiled').style.height = prefs.panel; }
   } catch (_) { doc = null; }
   if (!doc) doc = { nextId: 1, lines: [blankLine()] };
   $('showCode').checked = showCode;

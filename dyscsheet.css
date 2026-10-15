@@ -157,6 +157,11 @@ textarea.note {
   display: inline-block;
   line-height: 1;
 }
+/* Symbols with a built-in subscript, like tα. line-height 0 keeps the cell from growing. */
+.cell sub, .sym sub {
+  font-size: 0.65em;
+  line-height: 0;
+}
 .cell.is-sup span {
   font-size: 0.68em;
   transform: translateY(-0.55em);
