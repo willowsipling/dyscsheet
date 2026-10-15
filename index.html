@@ -69,6 +69,7 @@
           <button id="addLineAbove" title="Add an empty math line above focused line (Shift+Enter)">Add Number Row Above</button>
           <button id="addNoteBelow" title="Add a text note below focused line (Option+N)">Add Text Row Below</button>
           <button id="addNoteAbove" title="Add a text note above focused (Option+Shift+N)">Add Text Row Above</button>
+          <button id="tidyFrac" title="Remove the blank cells inside the fraction around the box and shrink it to fit">Tidy fraction</button>
         </div>
         <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
         <span class="zoom">Zoom
@@ -125,6 +126,8 @@
   const SYMBOLS = [
     ['α', 'alpha'],
     ['β', 'beta'],
+    ['H₀', 'H naught (null hypothesis)'],
+    ['H₁', 'H one (research hypothesis)'],
     ['λ', 'lambda'],
     ['μ', 'mu (population mean)'],
     ['p̂', 'p hat (sample proportion)'],
@@ -136,7 +139,7 @@
     ['θ', 'theta'],
     ['χ', 'chi'],
     ['ŷ', 'y hat (predicted y)'],
-    ['x̄', 'x bar (sample mean)'],
+    ['x̄', 'X bar (sample mean)'],
     ['±', 'plus or minus'],
     ['÷', 'divided by'],
     ['×', 'times'],
@@ -176,6 +179,8 @@
     'x̄': '\\bar{x}',
     'p̂': '\\hat{p}',
     'ŷ': '\\hat{y}',
+    'H₀': 'H_0',
+    'H₁': 'H_1',
     'tα': 't_{\\alpha}',
     '{': '\\{',
     '}': '\\}',
@@ -190,7 +195,7 @@
   };
 
   // Symbols that need HTML to look right in the grid and on their button (no Unicode subscript α exists).
-  const SHOW = { 'tα': 't<sub>α</sub>' };
+  const SHOW = { 'tα': 't<sub>α</sub>', 'H₀': 'H<sub>0</sub>', 'H₁': 'H<sub>1</sub>' };
   const show = (ch) => SHOW[ch] || esc(ch);
 
   // ---------- State ----------
@@ -501,6 +506,69 @@
     cur.col--;
     commit();
   }
+  // ---------- Tidy fraction ----------
+  // Slide what's in rows r..R (columns s..e) to the left, dropping blank cells between things.
+  // Each wrap on row r (with whatever sits under it) moves as one piece; empty ones are dropped.
+  // Returns how many columns the packed contents use.
+  function packRows(line, r, R, s, e, skip) {
+    const tops = line.wraps.filter((w) => w.row === r && !skip.includes(w) && within(w, s, e));
+    const hasContent = (a, b) => line.rows.slice(r, R + 1).some((row) => row.slice(a, b + 1).some((c) => c));
+    const units = [];
+    for (let i = s; i <= e;) {
+      let b = Math.max(i, ...tops.filter((w) => w.start === i).map((w) => w.end));
+      while (tops.some((w) => w.start <= b && w.end > b)) b = Math.max(...tops.filter((w) => w.start <= b).map((w) => w.end));
+      if (hasContent(i, b)) units.push({ a: i, b, wraps: [] });
+      i = b + 1;
+    }
+    // Wraps inside the area go with their piece; any left over are empty and get dropped.
+    const inside = line.wraps.filter((w) => w.row >= r && w.row <= R && !skip.includes(w) && within(w, s, e));
+    for (const w of inside) {
+      const u = units.find((u) => within(w, u.a, u.b));
+      if (u) u.wraps.push(w); else line.wraps = line.wraps.filter((x) => x !== w);
+    }
+    const old = line.rows.slice(r, R + 1).map((row) => row.slice(s, e + 1));
+    for (let rr = r; rr <= R; rr++) for (let c = s; c <= e; c++) line.rows[rr][c] = '';
+    let p = s;
+    for (const u of units) {
+      const d = p - u.a;
+      for (let rr = r; rr <= R; rr++) for (let c = u.a; c <= u.b; c++) line.rows[rr][c + d] = old[rr - r][c - s];
+      for (const w of u.wraps) { w.start += d; w.end += d; }
+      p += u.b - u.a + 1;
+    }
+    return p - s;
+  }
+  // Clean up the fraction around the cursor: pack its top and bottom to the left, then
+  // shrink it to fit, keeping the fraction (and everything in it) in place.
+  function tidyFraction() {
+    const line = Ln();
+    if (isNote(line)) return;
+    const fr = wrapsAtCursor().filter((w) => w.kind === 'frac').pop();   // the innermost one
+    if (!fr) return setStatus('Put the box inside a fraction first, then click Tidy fraction.', 'error');
+    const r = fr.row, s = fr.start, e = fr.end, R = bottomOf(line, fr);
+    if (line.wraps.some((w) => w.kind === 'frac' && w !== fr && w.row === r && within(w, s, e))) {
+      return setStatus("This fraction has another fraction in its top, so it can't be tidied.", 'error');
+    }
+    snapshot();
+    ensureRow(line, R);
+    // Wraps around the whole fraction (like a root over all of it) stay put.
+    const around = line.wraps.filter((w) => w.row === r && w.start <= s && w.end >= e);
+    const used = Math.max(packRows(line, r, r, s, e, around), packRows(line, r + 1, R, s, e, []), 1);
+    const newEnd = s + used - 1;
+    // Drop the now-empty columns on the right; wraps that cover them shrink with them.
+    for (let c = e; c > newEnd; c--) {
+      if (line.rows.every((row) => !row[c])) deleteCol(line, c);
+    }
+    // Columns still holding something elsewhere (e.g. a bigger fraction's top) stay, but this fraction stops at its contents.
+    if (fr.end > newEnd) {
+      for (const w of line.wraps) if (w.row === r && w.start === s && w.end === fr.end && w !== fr) w.end = newEnd;
+      fr.end = newEnd;
+    }
+    cur.col = Math.min(cur.col, Math.max(s, lastFilled(line) + 1));
+    sel = null;
+    commit();
+    setStatus('Tidied the fraction.');
+  }
+
   // ---------- Copy, cut, paste ----------
   // The clipboard holds a block: the selected cells plus any fraction bottoms under them,
   // and the wraps inside it, all measured from the block's top-left corner.
@@ -924,7 +992,6 @@
     const cell = e.target.closest('.cell');
     if (!cell) return;
     e.preventDefault();
-    window.getSelection().removeAllRanges();   // drop any highlighted text so Cmd/Ctrl+C copies cells again
     sheetScroll.focus({ preventScroll: true });
     const li = +cell.dataset.line, r = +cell.dataset.row, col = +cell.dataset.col;
     if (e.shiftKey && li === cur.line && r === cur.row) sel = { line: li, row: r, a: sel && sel.line === li && sel.row === r ? sel.a : cur.col, b: col };
@@ -1035,7 +1102,7 @@
   });
   compiledBody.addEventListener('click', (e) => {
     const cl = e.target.closest('[data-cline]');
-    if (!cl || hasTextSel()) return;   // don't jump away while selecting text to copy
+    if (!cl) return;
     if (isNote(doc.lines[+cl.dataset.cline])) return focusNote(+cl.dataset.cline, true);
     cur = { line: +cl.dataset.cline, row: 0, col: Math.min(cur.col, lastFilled(doc.lines[+cl.dataset.cline]) + 1) };
     sel = null;
@@ -1060,10 +1127,8 @@
 
   // ---------- Clipboard events ----------
   const inField = (t) => t && t.closest && t.closest('input, textarea, select');
-  // Text highlighted with the mouse (e.g. the MathJax code) copies normally, not as grid cells.
-  const hasTextSel = () => { const s = window.getSelection(); return !!s && !s.isCollapsed && s.toString() !== ''; };
   ['copy', 'cut'].forEach((type) => document.addEventListener(type, (e) => {
-    if (inField(e.target) || isNote(Ln()) || !clip || hasTextSel()) return;
+    if (inField(e.target) || isNote(Ln()) || !clip) return;
     e.preventDefault();
     e.clipboardData.setData('text/plain', clip.text);
   }));
@@ -1081,7 +1146,7 @@
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-    if (mod && !isNote(Ln()) && !hasTextSel()) {
+    if (mod && !isNote(Ln())) {
       const k = e.key.toLowerCase();
       if (k === 'c') { copySel(); return; }
       if (k === 'x') { cutSel(); return; }
@@ -1195,6 +1260,7 @@
   $('cutBtn').addEventListener('click', () => { cutSel(); toSystemClipboard(); refocus(); });
   $('colLeft').addEventListener('click', () => { addColumn('left'); refocus(); });
   $('colRight').addEventListener('click', () => { addColumn('right'); refocus(); });
+  $('tidyFrac').addEventListener('click', () => { tidyFraction(); refocus(); });
   $('pasteBtn').addEventListener('click', () => {
     if (!clip) setStatus('Nothing copied yet. Select cells and click Copy first.', 'error');
     else pasteBlock(clip);
