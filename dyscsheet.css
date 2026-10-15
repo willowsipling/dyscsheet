@@ -82,11 +82,30 @@ body.about {
 .line-head {
   font-size: calc(1rem * var(--z));
   flex: none;
-  width: 2em;
   height: var(--cell);
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+}
+.ln {
+  width: 2em;
+  text-align: right;
+}
+/* Move and delete buttons. Hidden (but still taking up room) except on the current line,
+   so the grid never jumps sideways. A fraction is one line, so they only sit on its top row. */
+.line-tools {
+  display: flex;
+  gap: 2px;
+}
+.line:not(.is-current) .line-tools {
+  visibility: hidden;
+}
+.line-tools button {
+  font-size: 0.8em;
+  padding: 0 4px;
+}
+.line-tools .line-del.is-confirm {
+  background: #b00;
+  color: #fff;
 }
 .note-body {
   flex: none;
@@ -94,9 +113,6 @@ body.about {
   align-items: flex-start;
   gap: 4px;
   padding: 0 14px;
-}
-.note-del {
-  height: var(--cell);
 }
 /* A note is one grid row tall (more rows if the text wraps) and as wide as the grid. */
 
@@ -328,7 +344,7 @@ textarea.note {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .topbar, .handle, .note-del, .compiled-head .toggle {
+  .topbar, .handle, .line-tools, .compiled-head .toggle {
     display: none !important;
   }
   .sheet-scroll, .grid-scroll, .compiled-body {

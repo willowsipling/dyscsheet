@@ -52,7 +52,8 @@
           <button id="pasteBtn" title="Paste at the cursor (Cmd/Ctrl+V)">Paste</button>
           <button id="colLeft" title="Add an empty column left of the cursor (Shift+Space)">Add column left</button>
           <button id="colRight" title="Add an empty column right of the cursor">Add column right</button>
-          <button id="addLine" title="New math line (Enter)">New line</button>
+          <button id="addLineAbove" title="Add an empty line above this one (Shift+Enter)">Add row above</button>
+          <button id="addLineBelow" title="Add an empty line below this one (Enter)">Add row below</button>
           <button id="addNote" title="New note line (Option+N)">New note</button>
           <button id="save">Save file</button>
           <button id="open">Open file</button>
@@ -60,7 +61,7 @@
           <button id="print">Print / PDF</button>
           <button id="newSheet" class="danger">New sheet</button>
         </div>
-        <label class="toggle"><input type="checkbox" id="showFinished"> Finished math</label>
+        <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
         <span class="zoom">Zoom
           <button id="zoomOut" title="Make the grid smaller" aria-label="Zoom out">−</button>
           <button id="zoomReset" title="Back to 100%">100%</button>
@@ -80,11 +81,11 @@
     </div>
   </div>
 
-  <aside class="compiled" id="compiled" aria-label="Finished math" hidden>
+  <aside class="compiled" id="compiled" aria-label="LaTeX/MathJax output" hidden>
     <div class="handle" id="handle" title="Drag to resize"></div>
     <div class="compiled-head">
       <div class="wrap">
-        <span class="group-label">Finished math</span>
+        <span class="group-label">LaTeX/MathJax output</span>
         <label class="toggle"><input type="checkbox" id="showCode"> Show MathJax code</label>
       </div>
     </div>
@@ -194,7 +195,7 @@
   let armed = null;          // tool waiting for a drag
   let hlColor = 'khaki';
   let showCode = false;
-  let showFinished = false;
+  let showFinished = false;   // always starts off; not remembered between visits
   let dragging = false;
   let mjReady = false;
   const history = [];
@@ -603,10 +604,12 @@
   }
   function autosize(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
 
-  function newLine() {
+  // Like Excel's insert row: the new line goes above or below the current one, and the cursor moves to it.
+  function newLine(above) {
     snapshot();
-    doc.lines.splice(cur.line + 1, 0, blankLine());
-    cur = { line: cur.line + 1, row: 0, col: 0 };
+    const li = above ? cur.line : cur.line + 1;
+    doc.lines.splice(li, 0, blankLine());
+    cur = { line: li, row: 0, col: 0 };
     sel = null;
     commit();
   }
@@ -740,12 +743,21 @@
   }
 
 
+  // Line number, with move/delete buttons. CSS shows the buttons on the current line only.
+  function headHTML(li) {
+    const last = doc.lines.length - 1;
+    return `<div class="line-head"><span class="line-tools">
+        <button data-move-line="-1" title="Move line up" aria-label="Move line ${li + 1} up"${li === 0 ? ' disabled' : ''}>↑</button>
+        <button data-move-line="1" title="Move line down" aria-label="Move line ${li + 1} down"${li === last ? ' disabled' : ''}>↓</button>
+        <button class="line-del" data-del-line title="Delete line (click twice)" aria-label="Delete line ${li + 1}">✕</button>
+      </span><span class="ln">${li + 1}</span></div>`;
+  }
+
   function lineHTML(line, li, n) {
     if (isNote(line)) {
       return `<section class="line is-note" data-line="${li}">
-        <div class="line-head"><span class="ln">${li + 1}</span></div>
-        <div class="note-body"><textarea class="note" id="note-${li}" data-note="${li}" rows="1" aria-label="Note, line ${li + 1}" placeholder="Show your work!">${esc(line.text)}</textarea>
-          <button class="note-del" data-del-note="${li}" title="Delete this note" aria-label="Delete note ${li + 1}">✕</button></div>
+        ${headHTML(li)}
+        <div class="note-body"><textarea class="note" id="note-${li}" data-note="${li}" rows="1" aria-label="Note, line ${li + 1}" placeholder="Show your work!">${esc(line.text)}</textarea></div>
       </section>`;
     }
     const R = line.rows.length;
@@ -770,7 +782,7 @@
     }));
     const decos = line.wraps.map((w) => decoHTML(line, w)).join('');
     return `<section class="line" data-line="${li}">
-      <div class="line-head"><span class="ln">${li + 1}</span></div>
+      ${headHTML(li)}
       <div class="grid-scroll"><div class="grid" style="--n:${n};--r:${R}">${cells}${decos}</div></div>
     </section>`;
   }
@@ -849,6 +861,7 @@
   // ---------- Pointer input ----------
   sheet.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
+    if (e.target.closest('.line-tools')) { e.preventDefault(); return; }   // keep focus on the line
     const cell = e.target.closest('.cell');
     if (!cell) return;
     e.preventDefault();
@@ -912,7 +925,7 @@
       if (goToLine(target, e.key === 'ArrowUp')) e.preventDefault();
     } else if (e.key === 'Backspace' && ta.value === '') {
       e.preventDefault();
-      deleteNote(li);
+      deleteLine(li);
     } else if (e.key === 'Escape') {
       e.preventDefault();
       goToLine(li + 1, false) || goToLine(li - 1, true);
@@ -921,7 +934,7 @@
       newNote();
     }
   });
-  function deleteNote(li) {
+  function deleteLine(li) {
     snapshot();
     doc.lines.splice(li, 1);
     if (!doc.lines.length) doc.lines.push(blankLine());
@@ -930,9 +943,30 @@
     commit();
     if (isNote(doc.lines[target])) focusNote(target, true); else goToLine(target, true);
   }
+  function moveLine(li, d) {
+    const to = li + d;
+    if (to < 0 || to >= doc.lines.length) return;
+    snapshot();
+    [doc.lines[li], doc.lines[to]] = [doc.lines[to], doc.lines[li]];
+    cur.line = to; sel = null;
+    commit();
+    if (isNote(doc.lines[to])) focusNote(to, true);
+  }
+  // Like New sheet: the first click on ✕ only asks.
+  let delArmed = null;   // { li, t }
   sheet.addEventListener('click', (e) => {
-    const d = e.target.closest('[data-del-note]');
-    if (d) deleteNote(+d.dataset.delNote);
+    const b = e.target.closest('.line-tools button');
+    if (!b) return;
+    if ('moveLine' in b.dataset) { delArmed = null; moveLine(cur.line, +b.dataset.moveLine); return; }
+    if (!delArmed || delArmed.li !== cur.line || Date.now() - delArmed.t > 4000) {
+      delArmed = { li: cur.line, t: Date.now() };
+      b.classList.add('is-confirm');
+      setStatus(`Click ✕ again to delete line ${cur.line + 1}.`, 'error');
+      setTimeout(() => b.classList.remove('is-confirm'), 4000);
+      return;
+    }
+    delArmed = null;
+    deleteLine(cur.line);
   });
 
   $('chips').addEventListener('click', (e) => {
@@ -1036,7 +1070,7 @@
           armed = null; sel = null;
           return applyWrap(k, line, row, s, en);
         }
-        return newLine();
+        return newLine(e.shiftKey);
       case 'Escape': armed = null; sel = null; paint(); return setStatus('');
       case 'Backspace': e.preventDefault(); return clearCells();
       case 'Delete': e.preventDefault(); return deleteAtCursor();
@@ -1092,7 +1126,8 @@
 
   $('undo').addEventListener('click', () => { undo(); refocus(); });
   $('redo').addEventListener('click', () => { redo(); refocus(); });
-  $('addLine').addEventListener('click', () => { newLine(); refocus(); });
+  $('addLineAbove').addEventListener('click', () => { newLine(true); refocus(); });
+  $('addLineBelow').addEventListener('click', () => { newLine(false); refocus(); });
   const toSystemClipboard = () => { if (clip && navigator.clipboard) navigator.clipboard.writeText(clip.text).catch(() => {}); };
   $('copyBtn').addEventListener('click', () => { copySel(); toSystemClipboard(); refocus(); });
   $('cutBtn').addEventListener('click', () => { cutSel(); toSystemClipboard(); refocus(); });
@@ -1157,10 +1192,10 @@
     refocus();
   });
   function savePrefs() {
-    try { localStorage.setItem(PREFS, JSON.stringify({ showCode, showFinished, zoom, panel: $('compiled').style.height || '' })); } catch (_) {}
+    try { localStorage.setItem(PREFS, JSON.stringify({ showCode, zoom, panel: $('compiled').style.height || '' })); } catch (_) {}
   }
 
-  // Zoom changes only the grid (sheet area), never the toolbar or finished math.
+  // Zoom changes only the grid (sheet area), never the toolbar or the LaTeX/MathJax output.
   const ZOOMS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
   let zoom = 1;
   function setZoom(z) {
@@ -1206,7 +1241,7 @@
       if (old && Array.isArray(old.lines) && old.lines.length) { doc = null; doc = migrateV1(old); }
     }
     const prefs = JSON.parse(localStorage.getItem(PREFS) || 'null');
-    if (prefs) { showCode = !!prefs.showCode; showFinished = !!prefs.showFinished; if (ZOOMS.includes(prefs.zoom)) zoom = prefs.zoom; if (prefs.panel) $('compiled').style.height = prefs.panel; }
+    if (prefs) { showCode = !!prefs.showCode; if (ZOOMS.includes(prefs.zoom)) zoom = prefs.zoom; if (prefs.panel) $('compiled').style.height = prefs.panel; }
   } catch (_) { doc = null; }
   if (!doc) doc = { nextId: 1, lines: [blankLine()] };
   $('showCode').checked = showCode;
