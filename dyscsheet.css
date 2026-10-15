@@ -48,6 +48,51 @@ body {
 .zoom {
   margin-left: 1em;
 }
+
+/* Sheet controls as a cross: row buttons above/below the middle, column buttons to the sides. */
+.sheet-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1em;
+}
+.sheet-row > .group {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+}
+.pad {
+  display: grid;
+  grid-template-columns: auto auto auto;
+  grid-template-areas:
+    ".    ta   ."
+    ".    na   ."
+    "l    .    r"
+    ".    nb   ."
+    ".    tb   .";
+  gap: 3px 6px;
+}
+.pad button {
+  white-space: nowrap;
+}
+.pad-ta {
+  grid-area: ta;
+}
+.pad-na {
+  grid-area: na;
+}
+.pad-l {
+  grid-area: l;
+}
+.pad-r {
+  grid-area: r;
+}
+.pad-nb {
+  grid-area: nb;
+}
+.pad-tb {
+  grid-area: tb;
+}
 .info-row {
   min-height: 1.8em;
 }

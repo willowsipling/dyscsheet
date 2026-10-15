@@ -37,6 +37,7 @@
           <input type="file" id="fileInput" accept=".json,application/json" hidden>
           <button id="save">Save file</button>
           <button id="print">Print / PDF</button>
+          <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
         </div>
         <div class="group" role="group" aria-label="Edit">
           <span class="group-label">Edit</span>
@@ -45,6 +46,11 @@
           <button id="cutBtn" title="Cut selected cells (Cmd/Ctrl+X)">Cut</button>
           <button id="copyBtn" title="Copy selected cells (Cmd/Ctrl+C)">Copy</button>
           <button id="pasteBtn" title="Paste at focus (Cmd/Ctrl+V)">Paste</button>
+          <span class="zoom">Zoom
+            <button id="zoomOut" title="Make the grid smaller" aria-label="Zoom out">−</button>
+            <button id="zoomReset" title="Back to 100%">100%</button>
+            <button id="zoomIn" title="Make the grid bigger" aria-label="Zoom in">+</button>
+          </span>
         </div>
       </div>
       <div class="row">
@@ -60,23 +66,18 @@
           <span id="symbols" class="group"></span>
         </div>
       </div>
-      <div class="row">
+      <div class="row sheet-row">
         <div class="group" role="group" aria-label="Sheet">
           <span class="group-label">Sheet</span>
-          <button id="colLeft" title="Add an empty column left of focus (Shift+Space)">Add column left</button>
-          <button id="colRight" title="Add an empty column right of focus">Add column right</button>
-          <button id="addLineBelow" title="Add an empty math line below focused line (Enter)">Add Number Row Below</button>
-          <button id="addLineAbove" title="Add an empty math line above focused line (Shift+Enter)">Add Number Row Above</button>
-          <button id="addNoteBelow" title="Add a text note below focused line (Option+N)">Add Text Row Below</button>
-          <button id="addNoteAbove" title="Add a text note above focused (Option+Shift+N)">Add Text Row Above</button>
-          <button id="tidyFrac" title="Remove the blank cells inside the fraction around the box and shrink it to fit">Tidy fraction</button>
+          <div class="pad">
+            <button id="addNoteAbove" class="pad-ta" title="Add a text note above focused (Option+Shift+N)"><span aria-hidden="true">⬆️💬</span> Add Text Row Above</button>
+            <button id="addLineAbove" class="pad-na" title="Add an empty math line above focused line (Shift+Enter)"><span aria-hidden="true">⬆️🔢</span> Add Number Row Above</button>
+            <button id="colLeft" class="pad-l" title="Add an empty column left of focus (Shift+Space)"><span aria-hidden="true">⬅️</span> Add Column Left</button>
+            <button id="colRight" class="pad-r" title="Add an empty column right of focus"><span aria-hidden="true">➡️</span> Add Column Right</button>
+            <button id="addLineBelow" class="pad-nb" title="Add an empty math line below focused line (Enter)"><span aria-hidden="true">⬇️🔢</span> Add Number Row Below</button>
+            <button id="addNoteBelow" class="pad-tb" title="Add a text note below focused line (Option+N)"><span aria-hidden="true">⬇️💬</span> Add Text Row Below</button>
+          </div>
         </div>
-        <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
-        <span class="zoom">Zoom
-          <button id="zoomOut" title="Make the grid smaller" aria-label="Zoom out">−</button>
-          <button id="zoomReset" title="Back to 100%">100%</button>
-          <button id="zoomIn" title="Make the grid bigger" aria-label="Zoom in">+</button>
-        </span>
       </div>
       <div class="info-row">
         <div class="chips" id="chips" aria-live="polite"></div>
@@ -1218,6 +1219,7 @@
 
   $('tools').innerHTML = Object.entries(KINDS).map(([k, v]) =>
     `<button class="tool" data-kind="${k}" aria-pressed="false" title="${esc(v.name)} (Option+${v.key})">${esc(v.label)}</button>`
+    + (k === 'frac' ? '<button id="tidyFrac" title="Remove the blank cells inside the fraction around the box and shrink it to fit">Tidy fraction</button>' : '')
   ).join('');
   $('tools').addEventListener('click', (e) => {
     const b = e.target.closest('button.tool');
