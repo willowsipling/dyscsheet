@@ -924,6 +924,7 @@
     const cell = e.target.closest('.cell');
     if (!cell) return;
     e.preventDefault();
+    window.getSelection().removeAllRanges();   // drop any highlighted text so Cmd/Ctrl+C copies cells again
     sheetScroll.focus({ preventScroll: true });
     const li = +cell.dataset.line, r = +cell.dataset.row, col = +cell.dataset.col;
     if (e.shiftKey && li === cur.line && r === cur.row) sel = { line: li, row: r, a: sel && sel.line === li && sel.row === r ? sel.a : cur.col, b: col };
@@ -1034,7 +1035,7 @@
   });
   compiledBody.addEventListener('click', (e) => {
     const cl = e.target.closest('[data-cline]');
-    if (!cl) return;
+    if (!cl || hasTextSel()) return;   // don't jump away while selecting text to copy
     if (isNote(doc.lines[+cl.dataset.cline])) return focusNote(+cl.dataset.cline, true);
     cur = { line: +cl.dataset.cline, row: 0, col: Math.min(cur.col, lastFilled(doc.lines[+cl.dataset.cline]) + 1) };
     sel = null;
@@ -1059,8 +1060,10 @@
 
   // ---------- Clipboard events ----------
   const inField = (t) => t && t.closest && t.closest('input, textarea, select');
+  // Text highlighted with the mouse (e.g. the MathJax code) copies normally, not as grid cells.
+  const hasTextSel = () => { const s = window.getSelection(); return !!s && !s.isCollapsed && s.toString() !== ''; };
   ['copy', 'cut'].forEach((type) => document.addEventListener(type, (e) => {
-    if (inField(e.target) || isNote(Ln()) || !clip) return;
+    if (inField(e.target) || isNote(Ln()) || !clip || hasTextSel()) return;
     e.preventDefault();
     e.clipboardData.setData('text/plain', clip.text);
   }));
@@ -1078,7 +1081,7 @@
     const mod = e.metaKey || e.ctrlKey;
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
-    if (mod && !isNote(Ln())) {
+    if (mod && !isNote(Ln()) && !hasTextSel()) {
       const k = e.key.toLowerCase();
       if (k === 'c') { copySel(); return; }
       if (k === 'x') { cutSel(); return; }
