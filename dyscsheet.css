@@ -1,0 +1,104 @@
+/* Only what dyscsheet needs to work. Everything else is the browser's default look. */
+:root { --z: 1; --cell: calc(2.4rem * var(--z)); }
+html, body { margin: 0; height: 100%; }
+[hidden] { display: none !important; }
+
+/* Page: toolbar on top, sheet in the middle (scrolls), finished math pinned at the bottom. */
+body { display: flex; flex-direction: column; overflow: hidden; }
+.wrap { padding-inline: 16px; }
+.topbar { flex: none; padding-block: 4px; border-bottom: 1px solid #999; }
+.topbar h1 { font-size: 1.2em; margin: 4px 0; }
+.row { margin-block: 3px; }
+.swatches label { display: inline-block; width: 1em; height: 1em; vertical-align: middle; }
+.zoom { margin-left: 1em; }
+.info-row { min-height: 1.8em; }
+.status.is-error { color: #b00; }
+
+/* about.html shares this file but is an ordinary scrolling page. */
+body.about { display: block; height: auto; overflow: visible; margin: 0 auto; padding: 8px 16px 32px; max-width: 46rem; }
+.sheet-scroll { flex: 1; min-height: 0; overflow: auto; outline: none; --cell: calc(2.4rem * var(--z)); }
+
+/* Lines sit right on top of each other, like one sheet of graph paper. */
+.line { display: flex; align-items: flex-start; }
+.line-head { font-size: calc(1rem * var(--z)); flex: none; width: 2em; height: var(--cell); display: flex; align-items: center; justify-content: flex-end; }
+.note-body { flex: none; display: flex; align-items: flex-start; gap: 4px; padding: 0 14px; }
+.note-del { height: var(--cell); }
+/* A note is one grid row tall (more rows if the text wraps) and as wide as the grid. */
+textarea.note {
+  font: inherit; font-size: calc(1rem * var(--z)); display: block; box-sizing: border-box;
+  width: calc(var(--n) * var(--cell)); height: var(--cell);
+  line-height: var(--cell); padding: 0 8px; margin: 0;
+  border: none; box-shadow: inset 1px 0 #ccc, inset -1px 0 #ccc, inset 0 -1px #ccc;
+  /* rule a line under every row of text, like the grid rows */
+  background: repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--cell) - 1px), #ccc calc(var(--cell) - 1px), #ccc var(--cell));
+  resize: none; overflow: hidden;
+}
+.sheet > .line:first-child textarea.note { box-shadow: inset 1px 0 #ccc, inset -1px 0 #ccc, inset 0 -1px #ccc, inset 0 1px #ccc; }
+
+/* The graph-paper grid. Monospace so every column is the same width.
+   Nothing clips the grid, so the radical's hook can reach up past its row like it would on paper. */
+.grid-scroll { flex: none; }
+.grid {
+  display: grid;
+  grid-template-columns: repeat(var(--n), var(--cell));
+  grid-template-rows: repeat(var(--r), var(--cell));
+  width: max-content;
+  padding: 0 14px;   /* side room for big parentheses */
+  user-select: none; -webkit-user-select: none;
+}
+.cell {
+  border-right: 1px solid #ccc; border-bottom: 1px solid #ccc;
+  display: flex; align-items: center; justify-content: center;
+  font-family: monospace; font-size: calc(1.3rem * var(--z));
+  cursor: text; touch-action: none;
+}
+.cell.c0 { border-left: 1px solid #ccc; }
+.sheet > .line:first-child .cell.r0 { border-top: 1px solid #ccc; }
+.cell span { display: inline-block; line-height: 1; }
+.cell.is-sup span { font-size: 0.68em; transform: translateY(-0.55em); }
+.cell.is-sub span { font-size: 0.68em; transform: translateY(0.5em); }
+.cell.is-space span { color: #999; font-size: 0.75em; }
+.grid.is-armed .cell { cursor: crosshair; }
+.cell.is-sel { background: #cde; }
+.cell.is-cursor { outline: 2px solid #000; outline-offset: -2px; position: relative; z-index: 3; }
+.cell.hl-khaki { background: khaki; }
+.cell.hl-pink { background: pink; }
+.cell.hl-lightblue { background: lightblue; }
+.cell.hl-palegreen { background: palegreen; }
+.cell.is-sel[class*="hl-"] { outline: 2px solid #36c; outline-offset: -5px; }
+
+/* Structure drawn on the grid */
+.deco { position: relative; pointer-events: none; z-index: 2; }
+.deco i { position: absolute; font-style: normal; line-height: 1; }
+.d-frac::after { content: ""; position: absolute; left: 3px; right: 3px; bottom: -1px; height: 2px; background: #000; }
+.d-sqrt { border-top: 2px solid #000; margin-top: 3px; margin-right: 2px; }
+.d-sqrt i { font-size: calc(1.9rem * var(--z)); left: -0.5em; top: -0.18em; transform: scaleY(var(--h)); transform-origin: top left; }
+.d-paren i { font-size: calc(1.9rem * var(--z)); top: 50%; transform: translateY(-50%) scaleY(var(--h)); }
+.d-paren i:first-child { left: -0.2em; }
+.d-paren i:last-child { right: -0.2em; }
+.d-bar::before { content: ""; position: absolute; left: 6px; right: 6px; top: 3px; height: 2px; background: #000; }
+.d-hat i { font-size: calc(1.1rem * var(--z)); left: 50%; top: -0.15em; transform: translateX(-50%); }
+
+/* Finished math panel */
+.compiled { flex: none; height: 38vh; min-height: 5rem; max-height: 80vh; display: flex; flex-direction: column; border-top: 1px solid #999; }
+.handle { flex: none; height: 8px; cursor: ns-resize; touch-action: none; background: #ddd; }
+.compiled-body { flex: 1; min-height: 0; overflow: auto; }
+.cline { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+.cln { flex: none; width: 2em; text-align: right; }
+.cmain { flex: 1; min-width: 0; }
+.cmath { overflow-x: auto; }
+.cmath mjx-container[display="true"] { margin: 0.15em 0 !important; text-align: left !important; }
+.cnote { margin: 0.15em 0; white-space: pre-wrap; }
+.src { margin: 0; white-space: pre-wrap; }
+.err { color: #b00; }
+
+@media print {
+  html, body { height: auto; overflow: visible; display: block; }
+  body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .topbar, .handle, .note-del, .compiled-head .toggle { display: none !important; }
+  .sheet-scroll, .grid-scroll, .compiled-body { overflow: visible; }
+  .line, .cline { break-inside: avoid; }
+  .cell.is-cursor { outline: none; }
+  .cell.is-sel { background: none; }
+  .compiled { height: auto !important; max-height: none; }
+}

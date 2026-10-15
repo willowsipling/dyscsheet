@@ -1,0 +1,1199 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dyscsheet</title>
+<link rel="stylesheet" href="dyscsheet.css">
+<script>
+  window.MathJax = {
+    loader: { load: ['[tex]/bbox', '[tex]/color'] },
+    tex: { packages: { '[+]': ['bbox', 'color'] } },
+    chtml: { scale: 1.45 },
+    options: { enableMenu: false },
+    startup: {
+      typeset: false,
+      ready() {
+        MathJax.startup.defaultReady();
+        MathJax.startup.promise.then(() => window.dispatchEvent(new Event('mathjax-ready')));
+      }
+    }
+  };
+</script>
+<script src="https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/tex-chtml.js" async></script>
+</head>
+<body>
+  <div class="topbar">
+    <div class="wrap">
+      <div class="title-row">
+        <h1>dysc<span>sheet</span></h1>
+        <a href="about.html">About / how to use</a>
+      </div>
+      <div class="row">
+        <div class="group" role="group" aria-label="Wrap tools">
+          <span class="group-label">Wrap</span>
+          <span id="tools" class="group"></span>
+          <span class="swatches" role="radiogroup" aria-label="Highlight color" id="swatches"></span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="group" role="group" aria-label="Symbols">
+          <span class="group-label">Symbols</span>
+          <span id="symbols" class="group"></span>
+        </div>
+      </div>
+      <div class="row">
+        <div class="group" role="group" aria-label="Sheet">
+          <span class="group-label">Sheet</span>
+          <button id="undo" title="Undo (Cmd/Ctrl+Z)">Undo</button>
+          <button id="redo" title="Redo (Cmd/Ctrl+Shift+Z)">Redo</button>
+          <button id="copyBtn" title="Copy selected cells (Cmd/Ctrl+C)">Copy</button>
+          <button id="cutBtn" title="Cut selected cells (Cmd/Ctrl+X)">Cut</button>
+          <button id="pasteBtn" title="Paste at the cursor (Cmd/Ctrl+V)">Paste</button>
+          <button id="colLeft" title="Add an empty column left of the cursor (Shift+Space)">Add column left</button>
+          <button id="colRight" title="Add an empty column right of the cursor">Add column right</button>
+          <button id="addLine" title="New math line (Enter)">New line</button>
+          <button id="addNote" title="New note line (Option+N)">New note</button>
+          <button id="save">Save file</button>
+          <button id="open">Open file</button>
+          <input type="file" id="fileInput" accept=".json,application/json" hidden>
+          <button id="print">Print / PDF</button>
+          <button id="newSheet" class="danger">New sheet</button>
+        </div>
+        <label class="toggle"><input type="checkbox" id="showFinished" checked> Finished math</label>
+        <span class="zoom">Zoom
+          <button id="zoomOut" title="Make the grid smaller" aria-label="Zoom out">−</button>
+          <button id="zoomReset" title="Back to 100%">100%</button>
+          <button id="zoomIn" title="Make the grid bigger" aria-label="Zoom in">+</button>
+        </span>
+      </div>
+      <div class="info-row">
+        <div class="chips" id="chips" aria-live="polite"></div>
+        <div class="status" id="status" role="status" aria-live="polite"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sheet-scroll" id="sheetScroll" tabindex="0" aria-label="Math sheet. Type to fill cells; arrow keys move.">
+    <div class="wrap">
+      <main class="sheet" id="sheet"></main>
+    </div>
+  </div>
+
+  <aside class="compiled" id="compiled" aria-label="Finished math">
+    <div class="handle" id="handle" title="Drag to resize"></div>
+    <div class="compiled-head">
+      <div class="wrap">
+        <span class="group-label">Finished math</span>
+        <label class="toggle"><input type="checkbox" id="showCode"> Show MathJax code</label>
+      </div>
+    </div>
+    <div class="compiled-body"><div class="wrap" id="compiledBody"></div></div>
+  </aside>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- Constants ----------
+  const MIN_COLS = 20;
+  const STORE = 'dyscsheet.v2';
+  const OLD_STORE = 'dyscsheet.v1';
+  const PREFS = 'dyscsheet.prefs';
+
+  const KINDS = {
+    sqrt:  { label: '√',   name: 'Square root',     code: 'KeyR',   key: 'R' },
+    frac:  { label: 'a/b', name: 'Fraction',        code: 'KeyF',   key: 'F' },
+    paren: { label: '( )', name: 'Big parentheses', code: 'KeyP',   key: 'P' },
+    sup:   { label: 'x²',  name: 'Exponent',        code: 'Digit6', key: '6' },
+    sub:   { label: 'x₂',  name: 'Subscript',       code: 'Minus',  key: '-' },
+    bar:   { label: 'x̄',   name: 'Bar',             code: 'KeyB',   key: 'B' },
+    hat:   { label: 'p̂',   name: 'Hat',             code: 'KeyT',   key: 'T' },
+    hl:    { label: 'Highlight', name: 'Highlight', code: 'KeyH',   key: 'H' },
+  };
+  const HL_COLORS = [['khaki', 'Yellow'], ['pink', 'Pink'], ['lightblue', 'Blue'], ['palegreen', 'Green']];
+  const SYMBOLS = [
+    ['x̄', 'x bar (sample mean)'], ['p̂', 'p hat (sample proportion)'], ['ŷ', 'y hat (predicted y)'],
+    ['μ', 'mu (population mean)'], ['σ', 'sigma (population standard deviation)'], ['Σ', 'sum'],
+    ['α', 'alpha'], ['β', 'beta'], ['χ', 'chi'], ['ρ', 'rho'], ['λ', 'lambda'], ['θ', 'theta'], ['π', 'pi'],
+    ['±', 'plus or minus'], ['×', 'times'], ['÷', 'divided by'], ['·', 'times (dot)'],
+    ['≤', 'less than or equal'], ['≥', 'greater than or equal'], ['≠', 'not equal'], ['≈', 'approximately'], ['∞', 'infinity'],
+  ];
+
+  // How each cell's contents become MathJax (TeX) code. Anything not listed passes through as-is.
+  const TEX = {
+    ' ': '\\;',
+    '−': '-', '-': '-', '×': '\\times', '*': '\\times', '÷': '\\div', '·': '\\cdot',
+    '≤': '\\le', '≥': '\\ge', '≠': '\\ne', '≈': '\\approx', '±': '\\pm', '∞': '\\infty',
+    'μ': '\\mu', 'σ': '\\sigma', 'Σ': '\\sum', 'α': '\\alpha', 'β': '\\beta', 'χ': '\\chi',
+    'ρ': '\\rho', 'λ': '\\lambda', 'π': '\\pi', 'θ': '\\theta',
+    'x̄': '\\bar{x}', 'p̂': '\\hat{p}', 'ŷ': '\\hat{y}',
+    '{': '\\{', '}': '\\}', '%': '\\%', '$': '\\$', '#': '\\#', '&': '\\&', '_': '\\_',
+    '^': '\\hat{}', '\\': '\\backslash', '~': '\\sim',
+  };
+
+  // ---------- State ----------
+  // A line is a band of rows that share columns. Row 0 is the main row;
+  // rows below it hold fraction bottoms.
+  //   doc = { nextId, lines: [{ rows: [[cell...], ...], wraps: [{ id, kind, row, start, end, color? }] }] }
+  // A fraction wrap on row r uses row r for the top and row r+1 (same columns) for the bottom.
+  let doc = null;
+  let cur = { line: 0, row: 0, col: 0 };
+  let sel = null;            // { line, row, a, b }
+  let armed = null;          // tool waiting for a drag
+  let hlColor = 'khaki';
+  let showCode = false;
+  let showFinished = true;
+  let dragging = false;
+  let mjReady = false;
+  const history = [];
+  const future = [];
+  const mathCache = new Map();
+
+  const $ = (id) => document.getElementById(id);
+  const sheet = $('sheet');
+  const sheetScroll = $('sheetScroll');
+  const compiledBody = $('compiledBody');
+  const statusEl = $('status');
+
+  // ---------- Line helpers ----------
+  const Ln = () => doc.lines[cur.line];
+  const isNote = (line) => line && line.type === 'text';
+  const newNoteLine = (text = '') => ({ type: 'text', text });
+  const width = (line) => line.rows[0].length;
+  function setWidth(line, n) {
+    for (const row of line.rows) { while (row.length < n) row.push(''); row.length = n; }
+  }
+  function ensureRow(line, r) {
+    while (line.rows.length <= r) line.rows.push(Array(width(line)).fill(''));
+  }
+  function lastFilled(line) {
+    if (isNote(line)) return -1;
+    let m = -1;
+    for (const row of line.rows) for (let i = row.length - 1; i > m; i--) if (row[i]) { m = i; break; }
+    return m;
+  }
+  const blankLine = () => ({ rows: [Array(MIN_COLS).fill('')], wraps: [] });
+
+  // Insert an empty column across every row of a line. Wraps that straddle it stretch.
+  function insertCol(line, c) {
+    for (const row of line.rows) row.splice(c, 0, '');
+    for (const w of line.wraps) {
+      if (w.start >= c) { w.start++; w.end++; }
+      else if (w.end >= c) w.end++;
+    }
+  }
+  function deleteCol(line, c) {
+    for (const row of line.rows) row.splice(c, 1);
+    line.wraps = line.wraps.filter((w) => {
+      if (w.start > c) { w.start--; w.end--; }
+      else if (w.end >= c) w.end--;
+      return w.end >= w.start;
+    });
+  }
+
+  // Lowest row a wrap reaches (fractions inside it pull it down).
+  function bottomRange(line, r, s, e) {
+    let b = r;
+    for (const f of line.wraps) {
+      if (f.kind === 'frac' && f.row === r && f.start >= s && f.end <= e) b = Math.max(b, bottomRange(line, r + 1, f.start, f.end));
+    }
+    return b;
+  }
+  const bottomOf = (line, w) => bottomRange(line, w.row, w.start, w.end);
+
+  // ---------- Example sheet ----------
+  function exampleDoc() {
+    let id = 0;
+    const mk = (rows, wraps) => {
+      const n = Math.max(MIN_COLS, ...rows.map((r) => r.length));
+      const line = { rows: rows.map((r) => [...r]), wraps: wraps.map(([kind, row, start, end, color]) => ({ id: ++id, kind, row, start, end, color })) };
+      setWidth(line, n);
+      return line;
+    };
+    const lines = [
+      mk([['C', 'I', '=', 'x̄', '±', 't', 'α', 's'],
+          ['', '', '', '', '', '', '', 'n', '−', '1']], [['sub', 0, 6, 6], ['frac', 0, 7, 9], ['sqrt', 1, 7, 9], ['paren', 0, 7, 9]]),
+      newNoteLine('Find the t-value from the t-table. df = n − 1 = 1162 − 1 = 1161. That is more than 120, so use the ∞ row. It is a two-tailed test, so use the 95% column. The critical value there is 1.96.'),
+      mk([['9', '5', '%', ' ', 'C', 'I', '=', 'x̄', '±', '1', '.', '9', '6', 's'],
+          ['', '', '', '', '', '', '', '', '', '', '', '', '', 'n', '−', '1']], [['frac', 0, 13, 15], ['sqrt', 1, 13, 15], ['paren', 0, 13, 15]]),
+      newNoteLine('Now put the rest of the values into the formula.'),
+      mk([['3', '.', '4', '2', '±', '1', '.', '9', '6', '4', '.', '3', '5'],
+          ['', '', '', '', '', '', '', '', '', '1', '1', '6', '2', '−', '1']], [['frac', 0, 9, 14], ['sqrt', 1, 9, 14], ['paren', 0, 9, 14]]),
+      newNoteLine('Subtract in the denominator.'),
+      mk([['3', '.', '4', '2', '±', '1', '.', '9', '6', '4', '.', '3', '5'],
+          ['', '', '', '', '', '', '', '', '', '1', '1', '6', '1']], [['frac', 0, 9, 12], ['sqrt', 1, 9, 12], ['paren', 0, 9, 12]]),
+      newNoteLine('Next, calculate the square root.'),
+    ];
+    return { nextId: id + 1, lines };
+  }
+
+  // ---------- Turning cells + wraps into math ----------
+  const within = (w, s, e) => w.start >= s && w.end <= e;
+
+  function splitSlash(cells, s, e, inner) {
+    for (let j = s; j <= e; j++) {
+      const c = cells[j];
+      if ((c === '/' || c === '÷') && !inner.some((w) => w.start <= j && j <= w.end)) return j;
+    }
+    return -1;
+  }
+
+  function renderRow(line, r, s, e) {
+    const pool = line.wraps.filter((w) => w.row === r && within(w, s, e));
+    return renderSeq(line, r, s, e, pool);
+  }
+
+  function renderSeq(line, r, s, e, pool) {
+    const cells = line.rows[r] || [];
+    const out = [];
+    let lastScript = null;      // avoid x^{2}^{3}, which TeX rejects
+    let lastWasNumber = false;
+    let i = s;
+    while (i <= e) {
+      const starting = pool.filter((w) => w.start === i && w.end <= e);
+      if (starting.length) {
+        starting.sort((a, b) => (b.end - a.end) || (b.id - a.id)); // outermost first; later wraps sit outside
+        const w = starting[0];
+        const inner = pool.filter((x) => x !== w && within(x, w.start, w.end));
+        let piece = renderWrap(line, w, inner);
+        if (w.kind === 'sup' || w.kind === 'sub') {
+          if (lastScript === w.kind || out.length === 0) piece = '{}' + piece;
+          lastScript = w.kind;
+        } else {
+          lastScript = null;
+        }
+        out.push(piece);
+        lastWasNumber = false;
+        i = w.end + 1;
+        continue;
+      }
+      const c = cells[i];
+      if (c) {
+        // Keep 3.42 together as one number so MathJax doesn't space out the decimal point.
+        const isNum = /^[0-9.]$/.test(c);
+        if (isNum && lastWasNumber) out[out.length - 1] += c;
+        else out.push(TEX[c] ?? c);
+        lastWasNumber = isNum;
+        lastScript = null;
+      }
+      i++;
+    }
+    return out.join(' ');
+  }
+
+  function renderWrap(line, w, inner) {
+    if (w.kind === 'frac') {
+      const top = renderSeq(line, w.row, w.start, w.end, inner);
+      const bottom = renderRow(line, w.row + 1, w.start, w.end);
+      return `\\dfrac{${top}}{${bottom}}`;
+    }
+    const x = renderSeq(line, w.row, w.start, w.end, inner);
+    switch (w.kind) {
+      case 'sqrt':  return `\\sqrt{${x}}`;
+      case 'paren': return `\\left( ${x} \\right)`;
+      case 'bar':   return `\\overline{${x}}`;
+      case 'hat':   return `\\widehat{${x}}`;
+      case 'sup':   return `^{${x}}`;
+      case 'sub':   return `_{${x}}`;
+      case 'hl':    return `\\bbox[${w.color || 'khaki'},3px]{\\color{black}{${x}}}`;
+      default:      return x;
+    }
+  }
+
+  const lineTex = (line) => renderRow(line, 0, 0, width(line) - 1);
+
+  // ---------- Saving & undo ----------
+  function snapshot() {
+    history.push(JSON.stringify({ doc, cur }));
+    if (history.length > 300) history.shift();
+    future.length = 0;
+  }
+  function restore(json) {
+    const s = JSON.parse(json);
+    doc = s.doc; cur = s.cur; sel = null;
+  }
+  function undo() {
+    if (!history.length) return;
+    future.push(JSON.stringify({ doc, cur }));
+    restore(history.pop());
+    commit();
+  }
+  function redo() {
+    if (!future.length) return;
+    history.push(JSON.stringify({ doc, cur }));
+    restore(future.pop());
+    commit();
+  }
+  function persist() {
+    try { localStorage.setItem(STORE, JSON.stringify(doc)); } catch (_) { /* storage blocked: Save file still works */ }
+  }
+  // Drop empty rows at the bottom of a line that nothing needs any more.
+  function trimRows() {
+    let changed = false;
+    doc.lines.forEach((line, li) => {
+      if (isNote(line)) return;
+      while (line.rows.length > 1) {
+        const last = line.rows.length - 1;
+        if (line.rows[last].some((c) => c)) break;
+        if (line.wraps.some((w) => w.row >= last || (w.kind === 'frac' && w.row + 1 >= last))) break;
+        if (li === cur.line && cur.row >= last) break;
+        line.rows.pop();
+        changed = true;
+      }
+    });
+    return changed;
+  }
+  // After the cursor moves: redraw fully only if an empty row was just dropped.
+  function tidy() {
+    if (trimRows()) { persist(); render(); } else paint();
+  }
+  function commit() {
+    trimRows();
+    persist();
+    render();
+    setStatus('');
+  }
+
+  // ---------- Editing ----------
+  const selRange = () => sel ? [Math.min(sel.a, sel.b), Math.max(sel.a, sel.b)] : null;
+  const hasRange = () => sel && sel.a !== sel.b;
+
+  function typeChar(ch) {
+    if (ch === '*') ch = '×';
+    if (ch === '-') ch = '−';
+    snapshot();
+    if (hasRange()) cur.col = selRange()[0];
+    sel = null;
+    const line = Ln();
+    ensureRow(line, cur.row);
+    if (cur.col >= width(line)) setWidth(line, cur.col + 1);
+
+    // Typing just past the right end of a fraction's bottom stretches the fraction.
+    const f = fracEndingBefore(line, cur.row, cur.col);
+    if (f && !line.rows[cur.row][cur.col]) {
+      if (line.rows.some((row, ri) => ri !== cur.row && row[cur.col])) insertCol(line, cur.col);
+      stretchFrac(line, f, cur.col);
+    }
+    line.rows[cur.row][cur.col] = ch;
+    cur.col++;
+    commit();
+  }
+
+  // A fraction whose bottom (on row r) ends just left of column c.
+  const fracEndingBefore = (line, r, c) => line.wraps.find((w) => w.kind === 'frac' && w.row + 1 === r && w.end + 1 === c);
+  function stretchFrac(line, f, newEnd) {
+    const old = f.end;
+    for (const w of line.wraps) {
+      if (w.end === old && w.start <= f.start && (w === f || w.row === f.row || (w.kind === 'frac' && w.row < f.row))) w.end = newEnd;
+    }
+  }
+
+  // Clear cells s..e on row r, then drop any wrap over them that now has nothing inside.
+  // (A fraction goes only when both its top and bottom are empty.)
+  function clearRange(line, r, s, e) {
+    for (let i = s; i <= e; i++) line.rows[r][i] = '';
+    line.wraps = line.wraps.filter((w) => {
+      const b = bottomOf(line, w);
+      const touches = r >= w.row && r <= b && w.start <= e && w.end >= s;
+      if (!touches) return true;
+      for (let rr = w.row; rr <= b; rr++) for (let c = w.start; c <= w.end; c++) if (line.rows[rr] && line.rows[rr][c]) return true;
+      return false;
+    });
+  }
+
+  function clearCells() {
+    const line = Ln();
+    if (hasRange()) {
+      snapshot();
+      const [s, e] = selRange();
+      clearRange(line, cur.row, s, e);
+      cur.col = s; sel = null;
+    } else if (line.rows[cur.row][cur.col]) {
+      // The box is on something: clear it and stay put.
+      snapshot();
+      clearRange(line, cur.row, cur.col, cur.col);
+    } else if (cur.col > 0) {
+      // The box is on an empty cell: step left and clear that one.
+      snapshot();
+      cur.col--;
+      clearRange(line, cur.row, cur.col, cur.col);
+    } else if (cur.row > 0) {
+      cur.row--; return paint();
+    } else if (cur.line > 0 && lastFilled(line) < 0 && !line.wraps.length) {
+      snapshot();
+      doc.lines.splice(cur.line, 1);
+      cur.line--;
+      cur.row = 0;
+      cur.col = Math.max(0, lastFilled(Ln()) + 1);
+      commit();
+      if (isNote(Ln())) focusNote(cur.line, true);
+      return;
+    } else return;
+    commit();
+  }
+  function deleteAtCursor() {
+    snapshot();
+    if (hasRange()) {
+      const [s, e] = selRange();
+      clearRange(Ln(), cur.row, s, e);
+      sel = null;
+    } else clearRange(Ln(), cur.row, cur.col, cur.col);
+    commit();
+  }
+  // Add an empty column beside the cursor (across every row of the line) and move into it.
+  function addColumn(side) {
+    if (isNote(Ln())) return;
+    snapshot();
+    const c = side === 'right' ? cur.col + 1 : cur.col;
+    insertCol(Ln(), c);
+    cur.col = c;
+    sel = null;
+    commit();
+  }
+  const insertBlank = () => addColumn('left');
+  function removeColShift() {
+    if (cur.col === 0) return;
+    snapshot();
+    deleteCol(Ln(), cur.col - 1);
+    cur.col--;
+    commit();
+  }
+  // ---------- Copy, cut, paste ----------
+  // The clipboard holds a block: the selected cells plus any fraction bottoms under them,
+  // and the wraps inside it, all measured from the block's top-left corner.
+  let clip = null;
+
+  function selectedBlock() {
+    const line = Ln();
+    if (isNote(line)) return null;
+    const useSel = sel && sel.line === cur.line;
+    const r = useSel ? sel.row : cur.row;
+    let [s, e] = useSel ? selRange() : [cur.col, cur.col];
+    // Take whole wraps, never half of one.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const w of line.wraps) {
+        if (w.row === r && w.start <= e && w.end >= s && !(w.start <= s && w.end >= e) && !within(w, s, e)) {
+          s = Math.min(s, w.start); e = Math.max(e, w.end); changed = true;
+        }
+      }
+    }
+    const b = bottomRange(line, r, s, e);
+    const rows = [];
+    for (let i = r; i <= b; i++) rows.push(line.rows[i].slice(s, e + 1));
+    const wraps = line.wraps
+      .filter((w) => w.row >= r && w.row <= b && within(w, s, e) && !(w.kind === 'frac' && w.row === b))
+      .map((w) => ({ kind: w.kind, row: w.row - r, start: w.start - s, end: w.end - s, color: w.color }));
+    const text = rows[0].filter((c) => c).join('');
+    return { li: cur.line, r, s, e, b, block: { rows, wraps, text } };
+  }
+
+  function copySel() {
+    const sb = selectedBlock();
+    if (sb) clip = sb.block;
+    return sb;
+  }
+
+  function cutSel() {
+    const sb = copySel();
+    if (!sb) return;
+    snapshot();
+    const line = doc.lines[sb.li];
+    for (let i = sb.r; i <= sb.b; i++) for (let c = sb.s; c <= sb.e; c++) line.rows[i][c] = '';
+    line.wraps = line.wraps.filter((w) => !(w.row >= sb.r && w.row <= sb.b && within(w, sb.s, sb.e)));
+    // Close the gap, but only where every row of the line is now empty.
+    for (let c = sb.e; c >= sb.s; c--) if (line.rows.every((row) => !row[c])) deleteCol(line, c);
+    cur = { line: sb.li, row: sb.r, col: sb.s };
+    sel = null;
+    commit();
+  }
+
+  // Paste inserts at the cursor and pushes the rest of the line right.
+  function pasteBlock(block) {
+    const line = Ln();
+    if (isNote(line) || !block || !block.rows[0].length) return;
+    const R = cur.row;
+    const C = hasRange() ? selRange()[0] : cur.col;
+    const w = block.rows[0].length;
+    const nested = block.wraps.some((f) => f.kind === 'frac' &&
+      line.wraps.some((x) => x.kind === 'frac' && x.row === R + f.row && x.start < C && C <= x.end));
+    if (nested) return setStatus("A fraction can't go inside the top of another fraction yet.", 'error');
+    snapshot();
+    const f = fracEndingBefore(line, R, C);
+    for (let k = 0; k < w; k++) insertCol(line, C);
+    if (f) stretchFrac(line, f, C + w - 1);
+    block.rows.forEach((cells, i) => {
+      ensureRow(line, R + i);
+      cells.forEach((ch, k) => { line.rows[R + i][C + k] = ch; });
+    });
+    for (const x of block.wraps) {
+      const nw = { id: doc.nextId++, kind: x.kind, row: R + x.row, start: C + x.start, end: C + x.end };
+      if (x.color) nw.color = x.color;
+      line.wraps.push(nw);
+    }
+    cur.col = C + w;
+    sel = null;
+    commit();
+  }
+
+  // Text copied from somewhere else: one character per cell.
+  function blockFromText(t) {
+    const parts = window.Intl && Intl.Segmenter ? [...new Intl.Segmenter().segment(t)].map((x) => x.segment) : Array.from(t);
+    const cells = parts.filter((g) => g !== '\r' && g !== '\n').slice(0, 200)
+      .map((g) => g === '\t' ? ' ' : g === '*' ? '×' : g === '-' ? '−' : g);
+    return cells.length ? { rows: [cells], wraps: [], text: t } : null;
+  }
+
+  function newNote() {
+    snapshot();
+    doc.lines.splice(cur.line + 1, 0, newNoteLine());
+    cur = { line: cur.line + 1, row: 0, col: 0 };
+    sel = null; armed = null;
+    commit();
+    focusNote(cur.line, true);
+  }
+  function focusNote(li, atEnd) {
+    cur = { line: li, row: 0, col: 0 };
+    if (trimRows()) { persist(); render(); }
+    const ta = sheet.querySelector(`textarea[data-note="${li}"]`);
+    if (!ta) return;
+    cur = { line: li, row: 0, col: 0 };
+    ta.focus({ preventScroll: true });
+    const p = atEnd ? ta.value.length : 0;
+    ta.setSelectionRange(p, p);
+    ta.scrollIntoView({ block: 'nearest' });
+    paint();
+  }
+  // Leave a note for the line above or below it.
+  function goToLine(li, fromBelow) {
+    if (li < 0 || li >= doc.lines.length) return false;
+    if (isNote(doc.lines[li])) { focusNote(li, fromBelow); return true; }
+    cur = { line: li, row: fromBelow ? doc.lines[li].rows.length - 1 : 0, col: Math.min(cur.col, lastFilled(doc.lines[li]) + 1) };
+    sel = null;
+    sheetScroll.focus({ preventScroll: true });
+    tidy();
+    return true;
+  }
+  function autosize(ta) { ta.style.height = 'auto'; ta.style.height = ta.scrollHeight + 'px'; }
+
+  function newLine() {
+    snapshot();
+    doc.lines.splice(cur.line + 1, 0, blankLine());
+    cur = { line: cur.line + 1, row: 0, col: 0 };
+    sel = null;
+    commit();
+  }
+
+  // ---------- Wrapping ----------
+  function applyWrap(kind, li, r, s, e) {
+    const line = doc.lines[li];
+    // Wraps on a row must nest. If the selection cuts through one, grow to cover it.
+    let grew = false, changed = true;
+    while (changed) {
+      changed = false;
+      for (const w of line.wraps) {
+        if (w.row !== r) continue;
+        const overlaps = w.start <= e && w.end >= s;
+        if (overlaps && !(w.start <= s && w.end >= e) && !within(w, s, e)) {
+          s = Math.min(s, w.start); e = Math.max(e, w.end);
+          changed = grew = true;
+        }
+      }
+    }
+    const name = KINDS[kind].name;
+    const same = line.wraps.find((w) => w.kind === kind && w.row === r && w.start === s && w.end === e);
+    if (same) {
+      snapshot();
+      line.wraps = line.wraps.filter((w) => w !== same);
+      return commit();
+    }
+    if (kind === 'frac') {
+      snapshot();
+      const res = makeFraction(line, r, s, e);
+      if (!res.ok) { history.pop(); return setStatus(res.msg, 'error'); }
+      cur = { line: li, row: r + 1, col: res.col };
+      return commit();
+    }
+    snapshot();
+    const w = { id: doc.nextId++, kind, row: r, start: s, end: e };
+    if (kind === 'hl') w.color = hlColor;
+    line.wraps.push(w);
+    commit();
+  }
+
+  // Turn cells s..e on row r into a fraction top, with the bottom on row r+1.
+  function makeFraction(line, r, s, e) {
+    if (line.wraps.some((w) => w.kind === 'frac' && w.row === r && w.start <= e && w.end >= s)) {
+      return { ok: false, msg: "A fraction can't sit inside the top of another fraction yet. Put it in the bottom, or type it with / instead." };
+    }
+    ensureRow(line, r + 1);
+    const cells = line.rows[r], below = line.rows[r + 1];
+    const inner = line.wraps.filter((w) => w.row === r && within(w, s, e));
+    const j = splitSlash(cells, s, e, inner);
+
+    if (j < 0) {
+      // Just the top was selected. The bottom goes (or already is) on the row underneath.
+      line.wraps.push({ id: doc.nextId++, kind: 'frac', row: r, start: s, end: e });
+      let col = s;
+      while (col <= e && below[col]) col++;
+      return { ok: true, col };
+    }
+
+    // Typed as a/b: drop the part after the slash down a row.
+    if (below.slice(s, e + 1).some((c) => c)) {
+      return { ok: false, msg: 'The row under those cells already has something in it. Clear it, or select just the top and type the bottom underneath.' };
+    }
+    const top = cells.slice(s, j), bot = cells.slice(j + 1, e + 1);
+    const w = Math.max(top.length, bot.length, 1);
+    for (let k = s; k <= e; k++) cells[k] = '';
+    top.forEach((c, k) => { cells[s + k] = c; });
+    bot.forEach((c, k) => { below[s + k] = c; });
+    const shift = j + 1 - s;
+    for (const x of inner) if (x.start > j) { x.row = r + 1; x.start -= shift; x.end -= shift; }
+    // Close the gap the bottom left behind, if no other row uses those columns.
+    for (let k = 0; k < (e - s + 1) - w; k++) {
+      const c = s + w;
+      if (line.rows.every((row) => !row[c]) && !line.wraps.some((x) => x.start === c && x.end === c)) deleteCol(line, c);
+      else break;
+    }
+    line.wraps.push({ id: doc.nextId++, kind: 'frac', row: r, start: s, end: s + w - 1 });
+    return { ok: true, col: s + bot.length };
+  }
+
+  function useTool(kind) {
+    if (isNote(Ln())) return setStatus('Wrap tools work on math lines. Click a math line first.', 'error');
+    if (hasRange() || (sel && armed === null)) {
+      const [s, e] = selRange();
+      const { line, row } = sel;
+      sel = null; armed = null;
+      applyWrap(kind, line, row, s, e);
+      return;
+    }
+    sel = null;
+    armed = armed === kind ? null : kind;
+    paint();
+  }
+
+  function removeWrap(li, id) {
+    const line = doc.lines[li];
+    const w = line.wraps.find((x) => x.id === id);
+    if (!w) return;
+    snapshot();
+    line.wraps = line.wraps.filter((x) => x !== w);
+    commit();
+  }
+
+  // Wraps that contain the cursor cell (including a fraction when you're in its bottom).
+  function wrapsAtCursor() {
+    const line = Ln();
+    if (isNote(line)) return [];
+    return line.wraps.filter((w) => cur.col >= w.start && cur.col <= w.end && cur.row >= w.row && cur.row <= bottomOf(line, w)
+      && (w.row === cur.row || w.kind === 'frac' || line.wraps.some((f) => f.kind === 'frac' && f.row === w.row && within(f, w.start, w.end) && f.start <= cur.col && cur.col <= f.end)))
+      .sort((a, b) => (b.end - b.start) - (a.end - a.start));
+  }
+
+  // ---------- Drawing ----------
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  }
+
+  function decoHTML(line, w) {
+    const b = bottomOf(line, w);
+    const cols = `grid-column:${w.start + 1}/${w.end + 2}`;
+    const tall = `grid-row:${w.row + 1}/${b + 2};${cols};--h:${b - w.row + 1}`;
+    const one = `grid-row:${w.row + 1};${cols}`;
+    switch (w.kind) {
+      case 'frac':  return `<div class="deco d-frac" style="${one}"></div>`;
+      case 'sqrt':  return `<div class="deco d-sqrt" style="${tall}"><i>√</i></div>`;
+      case 'paren': return `<div class="deco d-paren" style="${tall}"><i>(</i><i>)</i></div>`;
+      case 'bar':   return `<div class="deco d-bar" style="${one}"></div>`;
+      case 'hat':   return `<div class="deco d-hat" style="${one}"><i>^</i></div>`;
+      default:      return '';
+    }
+  }
+
+
+  function lineHTML(line, li, n) {
+    if (isNote(line)) {
+      return `<section class="line is-note" data-line="${li}">
+        <div class="line-head"><span class="ln">${li + 1}</span></div>
+        <div class="note-body"><textarea class="note" id="note-${li}" data-note="${li}" rows="1" aria-label="Note, line ${li + 1}" placeholder="Show your work :3">${esc(line.text)}</textarea>
+          <button class="note-del" data-del-note="${li}" title="Delete this note" aria-label="Delete note ${li + 1}">✕</button></div>
+      </section>`;
+    }
+    const R = line.rows.length;
+    const extra = line.rows.map(() => []);
+    const hl = line.rows.map(() => []);
+    for (const w of line.wraps) {
+      if (w.kind === 'sup' || w.kind === 'sub') for (let c = w.start; c <= w.end; c++) (extra[w.row][c] ||= []).push('is-' + w.kind);
+    }
+    [...line.wraps].filter((w) => w.kind === 'hl').sort((a, b) => (b.end - b.start) - (a.end - a.start)).forEach((w) => {
+      const b = bottomOf(line, w);
+      for (let r = w.row; r <= b; r++) for (let c = w.start; c <= w.end; c++) hl[r][c] = w.color || 'khaki';
+    });
+    let cells = '';
+    line.rows.forEach((row, r) => row.forEach((ch, c) => {
+      const k = ['cell', r === 0 ? 'r0' : 'rn'];
+      if (c === 0) k.push('c0');
+      if ((c + 1) % 5 === 0) k.push('c5');
+      if (extra[r][c]) k.push(...extra[r][c]);
+      if (hl[r][c]) k.push('hl-' + hl[r][c]);
+      if (ch === ' ') k.push('is-space');
+      cells += `<div class="${k.join(' ')}" data-line="${li}" data-row="${r}" data-col="${c}" style="grid-row:${r + 1};grid-column:${c + 1}"><span>${ch === ' ' ? '␣' : esc(ch)}</span></div>`;
+    }));
+    const decos = line.wraps.map((w) => decoHTML(line, w)).join('');
+    return `<section class="line" data-line="${li}">
+      <div class="line-head"><span class="ln">${li + 1}</span></div>
+      <div class="grid-scroll"><div class="grid" style="--n:${n};--r:${R}">${cells}${decos}</div></div>
+    </section>`;
+  }
+
+  function render() {
+    if (cur.line >= doc.lines.length) cur.line = doc.lines.length - 1;
+    const maths = doc.lines.filter((l) => !isNote(l));
+    const n = Math.max(MIN_COLS, cur.col + 2,
+      ...maths.map((l) => Math.max(lastFilled(l) + 2, ...l.wraps.map((w) => w.end + 2))));
+    maths.forEach((l) => setWidth(l, n));
+    cur.row = isNote(Ln()) ? 0 : Math.min(cur.row, Ln().rows.length - 1);
+
+    sheet.style.setProperty('--n', n);
+    sheet.innerHTML = doc.lines.map((line, li) => lineHTML(line, li, n)).join('');
+    sheet.querySelectorAll('textarea.note').forEach(autosize);
+    compiledBody.innerHTML = doc.lines.map((line, li) => isNote(line)
+      ? `<div class="cline" data-cline="${li}"><span class="cln">${li + 1}</span>
+          <p class="cnote${line.text.trim() ? '' : ' empty'}" data-cnote="${li}">${line.text.trim() ? esc(line.text) : 'Empty note'}</p></div>`
+      : `<div class="cline" data-cline="${li}"><span class="cln">${li + 1}</span>
+        <div class="cmain"><div class="cmath" data-out="${li}"></div>
+        <pre class="src"${showCode ? '' : ' hidden'}>${esc(lineTex(line))}</pre></div></div>`).join('');
+    renderMath();
+    paint();
+  }
+
+  function renderMath() {
+    let added = false;
+    compiledBody.querySelectorAll('[data-out]').forEach((out) => {
+      const tex = lineTex(doc.lines[+out.dataset.out]);
+      if (!tex.trim()) { out.innerHTML = '<span class="empty">Empty line</span>'; return; }
+      if (!mjReady) { out.innerHTML = '<span class="empty">Loading math…</span>'; return; }
+      let html = mathCache.get(tex);
+      if (!html) {
+        try {
+          MathJax.texReset();
+          html = MathJax.tex2chtml(tex, { display: true }).outerHTML;
+          added = true;
+        } catch (err) {
+          html = `<span class="err">This line can't be drawn yet (${esc(err.message)}).</span>`;
+        }
+        mathCache.set(tex, html);
+      }
+      out.innerHTML = html;
+    });
+    if (added) { MathJax.startup.document.clear(); MathJax.startup.document.updateDocument(); }
+  }
+
+  // Cheap redraw of cursor/selection/tool state without rebuilding.
+  function paint() {
+    const rg = selRange();
+    sheet.querySelectorAll('.line').forEach((el) => el.classList.toggle('is-current', +el.dataset.line === cur.line));
+    compiledBody.querySelectorAll('.cline').forEach((el) => el.classList.toggle('is-current', +el.dataset.cline === cur.line));
+    sheet.querySelectorAll('.grid').forEach((g) => g.classList.toggle('is-armed', !!armed));
+    sheet.querySelectorAll('.cell').forEach((el) => {
+      const li = +el.dataset.line, r = +el.dataset.row, c = +el.dataset.col;
+      el.classList.toggle('is-cursor', li === cur.line && r === cur.row && c === cur.col);
+      el.classList.toggle('is-sel', !!(sel && rg && li === sel.line && r === sel.row && c >= rg[0] && c <= rg[1] && (sel.a !== sel.b || dragging)));
+    });
+    document.querySelectorAll('button.tool').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.kind === armed)));
+
+    const ws = wrapsAtCursor();
+    $('chips').innerHTML = ws.length
+      ? '<span>Around this cell:</span>' + ws.map((w) =>
+          `<button class="chip" data-remove="${w.id}" title="Remove this ${esc(KINDS[w.kind].name.toLowerCase())}">${esc(KINDS[w.kind].label === 'Highlight' ? 'Highlight' : KINDS[w.kind].label + ' ' + KINDS[w.kind].name)} <b>✕</b></button>`).join('')
+      : '';
+
+    const cell = sheet.querySelector(`.cell[data-line="${cur.line}"][data-row="${cur.row}"][data-col="${cur.col}"]`);
+    if (cell && !dragging) cell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+
+  function setStatus(msg, tone) {
+    statusEl.textContent = msg || '';
+    statusEl.className = 'status' + (tone ? ' is-' + tone : '');
+  }
+
+  // ---------- Pointer input ----------
+  sheet.addEventListener('pointerdown', (e) => {
+    if (e.button !== 0) return;
+    const cell = e.target.closest('.cell');
+    if (!cell) return;
+    e.preventDefault();
+    sheetScroll.focus({ preventScroll: true });
+    const li = +cell.dataset.line, r = +cell.dataset.row, col = +cell.dataset.col;
+    if (e.shiftKey && li === cur.line && r === cur.row) sel = { line: li, row: r, a: sel && sel.line === li && sel.row === r ? sel.a : cur.col, b: col };
+    else sel = { line: li, row: r, a: col, b: col };
+    cur = { line: li, row: r, col };
+    dragging = true;
+    tidy();
+  });
+  document.addEventListener('pointermove', (e) => {
+    if (!dragging || !sel) return;
+    const cell = document.elementFromPoint(e.clientX, e.clientY)?.closest?.('.cell');
+    if (!cell || +cell.dataset.line !== sel.line || +cell.dataset.row !== sel.row) return;
+    const col = +cell.dataset.col;
+    if (col !== sel.b) { sel.b = col; cur.col = col; paint(); }
+  });
+  const endDrag = () => {
+    if (!dragging) return;
+    dragging = false;
+    if (armed && sel) {
+      const [s, e] = selRange(), { line, row } = sel, kind = armed;
+      armed = null; sel = null;
+      applyWrap(kind, line, row, s, e);
+      return;
+    }
+    if (sel && sel.a === sel.b) sel = null;
+    paint();
+  };
+  document.addEventListener('pointerup', endDrag);
+  document.addEventListener('pointercancel', endDrag);
+  window.addEventListener('blur', endDrag);
+
+  sheet.addEventListener('focusin', (e) => {
+    const ta = e.target.closest('textarea.note');
+    if (!ta) return;
+    const li = +ta.dataset.note;
+    if (cur.line !== li) { cur = { line: li, row: 0, col: 0 }; sel = null; paint(); }
+    ta.dataset.snap = '1';
+  });
+  sheet.addEventListener('input', (e) => {
+    const ta = e.target.closest('textarea.note');
+    if (!ta) return;
+    const li = +ta.dataset.note;
+    if (ta.dataset.snap === '1') { snapshot(); ta.dataset.snap = ''; }   // one undo step per editing visit
+    doc.lines[li].text = ta.value;
+    autosize(ta);
+    persist();
+    const p = compiledBody.querySelector(`[data-cnote="${li}"]`);
+    if (p) { p.textContent = ta.value.trim() ? ta.value : 'Empty note'; p.classList.toggle('empty', !ta.value.trim()); }
+  });
+  sheet.addEventListener('keydown', (e) => {
+    const ta = e.target.closest('textarea.note');
+    if (!ta) return;
+    const li = +ta.dataset.note;
+    const atStart = ta.selectionStart === 0 && ta.selectionEnd === 0;
+    const atEnd = ta.selectionStart === ta.value.length;
+    if ((e.key === 'ArrowUp' && atStart) || (e.key === 'ArrowDown' && atEnd)) {
+      const target = li + (e.key === 'ArrowUp' ? -1 : 1);
+      if (goToLine(target, e.key === 'ArrowUp')) e.preventDefault();
+    } else if (e.key === 'Backspace' && ta.value === '') {
+      e.preventDefault();
+      deleteNote(li);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      goToLine(li + 1, false) || goToLine(li - 1, true);
+    } else if (e.altKey && e.code === 'KeyN') {
+      e.preventDefault();
+      newNote();
+    }
+  });
+  function deleteNote(li) {
+    snapshot();
+    doc.lines.splice(li, 1);
+    if (!doc.lines.length) doc.lines.push(blankLine());
+    const target = Math.max(0, li - 1);
+    cur = { line: target, row: 0, col: 0 };
+    commit();
+    if (isNote(doc.lines[target])) focusNote(target, true); else goToLine(target, true);
+  }
+  sheet.addEventListener('click', (e) => {
+    const d = e.target.closest('[data-del-note]');
+    if (d) deleteNote(+d.dataset.delNote);
+  });
+
+  $('chips').addEventListener('click', (e) => {
+    const b = e.target.closest('[data-remove]');
+    if (b) { removeWrap(cur.line, +b.dataset.remove); sheetScroll.focus({ preventScroll: true }); }
+  });
+  compiledBody.addEventListener('click', (e) => {
+    const cl = e.target.closest('[data-cline]');
+    if (!cl) return;
+    if (isNote(doc.lines[+cl.dataset.cline])) return focusNote(+cl.dataset.cline, true);
+    cur = { line: +cl.dataset.cline, row: 0, col: Math.min(cur.col, lastFilled(doc.lines[+cl.dataset.cline]) + 1) };
+    sel = null;
+    paint();
+    sheetScroll.focus({ preventScroll: true });
+  });
+
+  // Resize the bottom panel.
+  $('handle').addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    const panel = $('compiled');
+    const y0 = e.clientY, h0 = panel.getBoundingClientRect().height;
+    const mv = (ev) => { panel.style.height = Math.min(window.innerHeight * 0.8, Math.max(80, h0 - (ev.clientY - y0))) + 'px'; };
+    const up = () => {
+      document.removeEventListener('pointermove', mv);
+      document.removeEventListener('pointerup', up);
+      savePrefs();
+    };
+    document.addEventListener('pointermove', mv);
+    document.addEventListener('pointerup', up);
+  });
+
+  // ---------- Clipboard events ----------
+  const inField = (t) => t && t.closest && t.closest('input, textarea, select');
+  ['copy', 'cut'].forEach((type) => document.addEventListener(type, (e) => {
+    if (inField(e.target) || isNote(Ln()) || !clip) return;
+    e.preventDefault();
+    e.clipboardData.setData('text/plain', clip.text);
+  }));
+  document.addEventListener('paste', (e) => {
+    if (inField(e.target) || isNote(Ln())) return;
+    e.preventDefault();
+    const t = e.clipboardData.getData('text/plain');
+    pasteBlock(t && !(clip && t === clip.text) ? blockFromText(t) : clip);
+  });
+
+  // ---------- Keyboard ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.target.closest && e.target.closest('input, select, textarea')) return;
+    if (e.target.closest && e.target.closest('button') && (e.key === 'Enter' || e.key === ' ')) return;
+    const mod = e.metaKey || e.ctrlKey;
+    if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
+    if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
+    if (mod && !isNote(Ln())) {
+      const k = e.key.toLowerCase();
+      if (k === 'c') { copySel(); return; }
+      if (k === 'x') { cutSel(); return; }
+      if (k === 'v') return;   // the browser's paste event (below) does the pasting
+    }
+    if (mod) return;
+
+    if (isNote(Ln())) { focusNote(cur.line, true); return; }
+    if (e.altKey && e.code === 'KeyN') { e.preventDefault(); newNote(); return; }
+    if (e.altKey) {
+      const tool = Object.keys(KINDS).find((k) => KINDS[k].code === e.code);
+      if (tool) { e.preventDefault(); useTool(tool); return; }
+      if (e.key === 'Backspace') { e.preventDefault(); removeColShift(); return; }
+      return;
+    }
+
+    const moveH = (dc) => {
+      e.preventDefault();
+      if (e.shiftKey) {
+        if (!sel) sel = { line: cur.line, row: cur.row, a: cur.col, b: cur.col };
+        cur.col = Math.max(0, cur.col + dc);
+        sel.b = cur.col;
+      } else {
+        sel = null;
+        cur.col = Math.max(0, cur.col + dc);
+      }
+      if (cur.col >= width(Ln()) - 1) render(); else paint();
+    };
+    const moveV = (dr) => {
+      e.preventDefault();
+      sel = null;
+      const r = cur.row + dr;
+      if (r >= 0 && r < Ln().rows.length) { cur.row = r; tidy(); }
+      else goToLine(cur.line + dr, dr < 0);
+    };
+
+    switch (e.key) {
+      case 'ArrowLeft': return moveH(-1);
+      case 'ArrowRight': return moveH(1);
+      case 'ArrowUp': return moveV(-1);
+      case 'ArrowDown': return moveV(1);
+      case 'Home': e.preventDefault(); sel = null; cur.col = 0; return paint();
+      case 'End': e.preventDefault(); sel = null; cur.col = lastFilled(Ln()) + 1; return paint();
+      case 'Enter':
+        e.preventDefault();
+        if (armed && sel) {
+          const [s, en] = selRange(), { line, row } = sel, k = armed;
+          armed = null; sel = null;
+          return applyWrap(k, line, row, s, en);
+        }
+        return newLine();
+      case 'Escape': armed = null; sel = null; paint(); return setStatus('');
+      case 'Backspace': e.preventDefault(); return clearCells();
+      case 'Delete': e.preventDefault(); return deleteAtCursor();
+      case 'Tab': return;
+    }
+    if (e.key === ' ') {
+      e.preventDefault();
+      return e.shiftKey ? insertBlank() : typeChar(' ');
+    }
+    if (e.key.length === 1 || /^\p{L}\p{M}?$/u.test(e.key)) {
+      e.preventDefault();
+      typeChar(e.key);
+    }
+  });
+
+  // ---------- Toolbar ----------
+  const refocus = () => sheetScroll.focus({ preventScroll: true });
+
+  $('tools').innerHTML = Object.entries(KINDS).map(([k, v]) =>
+    `<button class="tool" data-kind="${k}" aria-pressed="false" title="${esc(v.name)} (Option+${v.key})">${esc(v.label)}</button>`
+  ).join('');
+  $('tools').addEventListener('click', (e) => {
+    const b = e.target.closest('button.tool');
+    if (b) { useTool(b.dataset.kind); refocus(); }
+  });
+
+  $('swatches').innerHTML = HL_COLORS.map(([c, name], i) =>
+    `<input type="radio" name="hl" id="hl-${c}" value="${c}"${i === 0 ? ' checked' : ''}><label for="hl-${c}" title="${name} highlight" style="background:${c}"><span hidden>${name}</span></label>`
+  ).join('');
+  $('swatches').addEventListener('change', (e) => {
+    hlColor = e.target.value;
+    const w = wrapsAtCursor().find((x) => x.kind === 'hl');
+    if (w) { snapshot(); w.color = hlColor; commit(); }
+    refocus();
+  });
+
+  $('symbols').innerHTML = SYMBOLS.map(([s, name]) =>
+    `<button class="sym" data-sym="${esc(s)}" title="${esc(name)}" aria-label="${esc(name)}">${esc(s)}</button>`
+  ).join('');
+  $('symbols').addEventListener('pointerdown', (e) => { if (e.target.closest('button.sym')) e.preventDefault(); });
+  $('symbols').addEventListener('click', (e) => {
+    const b = e.target.closest('button.sym');
+    if (!b) return;
+    const ta = document.activeElement && document.activeElement.matches && document.activeElement.matches('textarea.note') ? document.activeElement : null;
+    if (ta) {
+      ta.setRangeText(b.dataset.sym, ta.selectionStart, ta.selectionEnd, 'end');
+      ta.dispatchEvent(new Event('input', { bubbles: true }));
+      return;
+    }
+    if (isNote(Ln())) return focusNote(cur.line, true);
+    typeChar(b.dataset.sym); refocus();
+  });
+
+  $('undo').addEventListener('click', () => { undo(); refocus(); });
+  $('redo').addEventListener('click', () => { redo(); refocus(); });
+  $('addLine').addEventListener('click', () => { newLine(); refocus(); });
+  const toSystemClipboard = () => { if (clip && navigator.clipboard) navigator.clipboard.writeText(clip.text).catch(() => {}); };
+  $('copyBtn').addEventListener('click', () => { copySel(); toSystemClipboard(); refocus(); });
+  $('cutBtn').addEventListener('click', () => { cutSel(); toSystemClipboard(); refocus(); });
+  $('colLeft').addEventListener('click', () => { addColumn('left'); refocus(); });
+  $('colRight').addEventListener('click', () => { addColumn('right'); refocus(); });
+  $('pasteBtn').addEventListener('click', () => {
+    if (!clip) setStatus('Nothing copied yet. Select cells and click Copy first.', 'error');
+    else pasteBlock(clip);
+    refocus();
+  });
+  $('addNote').addEventListener('click', () => newNote());
+  $('save').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'dyscsheet.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('open').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      let data = JSON.parse(await f.text());
+      if (!Array.isArray(data.lines)) throw new Error('no lines');
+      if (data.lines[0] && data.lines[0].cells) data = migrateV1(data);
+      snapshot();
+      doc = data; cur = { line: 0, row: 0, col: 0 }; sel = null;
+      commit();
+    } catch (_) {
+      setStatus(`${f.name} isn't a dyscsheet file. Choose a .json file saved from dyscsheet.`, 'error');
+    }
+    e.target.value = '';
+    refocus();
+  });
+  $('print').addEventListener('click', () => window.print());
+
+  let newArmed = 0;
+  $('newSheet').addEventListener('click', () => {
+    if (Date.now() - newArmed > 4000) {
+      newArmed = Date.now();
+      $('newSheet').textContent = 'Click again to clear';
+      setStatus('Click again to clear the whole sheet.', 'error');
+      setTimeout(() => { $('newSheet').textContent = 'New sheet'; }, 4000);
+      return;
+    }
+    newArmed = 0;
+    $('newSheet').textContent = 'New sheet';
+    snapshot();
+    doc = { nextId: 1, lines: [blankLine()] };
+    cur = { line: 0, row: 0, col: 0 }; sel = null; armed = null;
+    commit();
+    refocus();
+  });
+
+  $('showCode').addEventListener('change', (e) => { showCode = e.target.checked; savePrefs(); render(); });
+  $('showFinished').addEventListener('change', (e) => {
+    showFinished = e.target.checked;
+    $('compiled').hidden = !showFinished;
+    savePrefs();
+    refocus();
+  });
+  function savePrefs() {
+    try { localStorage.setItem(PREFS, JSON.stringify({ showCode, showFinished, zoom, panel: $('compiled').style.height || '' })); } catch (_) {}
+  }
+
+  // Zoom changes only the grid (sheet area), never the toolbar or finished math.
+  const ZOOMS = [0.5, 0.6, 0.7, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2];
+  let zoom = 1;
+  function setZoom(z) {
+    zoom = z;
+    sheetScroll.style.setProperty('--z', zoom);
+    $('zoomReset').textContent = Math.round(zoom * 100) + '%';
+    $('zoomOut').disabled = zoom <= ZOOMS[0];
+    $('zoomIn').disabled = zoom >= ZOOMS[ZOOMS.length - 1];
+    sheet.querySelectorAll('textarea.note').forEach(autosize);
+    savePrefs();
+    paint();
+  }
+  const stepZoom = (dir) => {
+    const i = ZOOMS.indexOf(zoom);
+    setZoom(ZOOMS[Math.min(ZOOMS.length - 1, Math.max(0, (i < 0 ? ZOOMS.indexOf(1) : i) + dir))]);
+  };
+  $('zoomOut').addEventListener('click', () => { stepZoom(-1); refocus(); });
+  $('zoomIn').addEventListener('click', () => { stepZoom(1); refocus(); });
+  $('zoomReset').addEventListener('click', () => { setZoom(1); refocus(); });
+
+  // Sheets from the first prototype stored one row per line with "/" fractions.
+  function migrateV1(old) {
+    const out = { nextId: old.nextId || 1, lines: [] };
+    const prev = doc;
+    for (const l of old.lines) {
+      const line = { rows: [[...l.cells]], wraps: [] };
+      const fracs = [];
+      for (const w of l.wraps) (w.kind === 'frac' ? fracs : line.wraps).push({ ...w, row: 0 });
+      doc = out; // makeFraction draws ids from doc.nextId
+      fracs.sort((a, b) => b.start - a.start).forEach((f) => makeFraction(line, 0, f.start, f.end));
+      out.lines.push(line);
+    }
+    doc = prev;
+    return out;
+  }
+
+  // ---------- Start ----------
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (saved && Array.isArray(saved.lines) && saved.lines.length) doc = saved;
+    if (!doc) {
+      const old = JSON.parse(localStorage.getItem(OLD_STORE) || 'null');
+      if (old && Array.isArray(old.lines) && old.lines.length) { doc = null; doc = migrateV1(old); }
+    }
+    const prefs = JSON.parse(localStorage.getItem(PREFS) || 'null');
+    if (prefs) { showCode = !!prefs.showCode; showFinished = prefs.showFinished !== false; if (ZOOMS.includes(prefs.zoom)) zoom = prefs.zoom; if (prefs.panel) $('compiled').style.height = prefs.panel; }
+  } catch (_) { doc = null; }
+  if (!doc) doc = exampleDoc();
+  $('showCode').checked = showCode;
+  $('showFinished').checked = showFinished;
+  $('compiled').hidden = !showFinished;
+
+  window.addEventListener('mathjax-ready', () => { mjReady = true; renderMath(); });
+  sheetScroll.style.setProperty('--z', zoom);
+  $('zoomReset').textContent = Math.round(zoom * 100) + '%';
+  render();
+  refocus();
+})();
+</script>
+</body>
+</html>
