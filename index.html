@@ -52,9 +52,10 @@
           <button id="pasteBtn" title="Paste at the cursor (Cmd/Ctrl+V)">Paste</button>
           <button id="colLeft" title="Add an empty column left of the cursor (Shift+Space)">Add column left</button>
           <button id="colRight" title="Add an empty column right of the cursor">Add column right</button>
-          <button id="addLineAbove" title="Add an empty line above this one (Shift+Enter)">Add row above</button>
-          <button id="addLineBelow" title="Add an empty line below this one (Enter)">Add row below</button>
-          <button id="addNote" title="New note line (Option+N)">New note</button>
+          <button id="addLineBelow" title="Add an empty math line below this one (Enter)">Add Number Row Below</button>
+          <button id="addLineAbove" title="Add an empty math line above this one (Shift+Enter)">Add Number Row Above</button>
+          <button id="addNoteBelow" title="Add a text note below this line (Option+N)">Add Text Row Below</button>
+          <button id="addNoteAbove" title="Add a text note above this line (Option+Shift+N)">Add Text Row Above</button>
           <button id="save">Save file</button>
           <button id="open">Open file</button>
           <input type="file" id="fileInput" accept=".json,application/json" hidden>
@@ -97,7 +98,7 @@
   'use strict';
 
   // ---------- Constants ----------
-  const MIN_COLS = 20;
+  const MIN_COLS = 30;
   const STORE = 'dyscsheet.v2';
   const OLD_STORE = 'dyscsheet.v1';
   const PREFS = 'dyscsheet.prefs';
@@ -359,14 +360,18 @@
     let changed = false;
     doc.lines.forEach((line, li) => {
       if (isNote(line)) return;
+      // A fraction with nothing in its bottom goes away once the cursor leaves the bottom row.
+      const kept = line.wraps.filter((w) => w.kind !== 'frac' || (li === cur.line && cur.row === w.row + 1)
+        || line.rows.slice(w.row + 1, bottomOf(line, w) + 1).some((row) => row.slice(w.start, w.end + 1).some((c) => c)));
+      if (kept.length !== line.wraps.length) { line.wraps = kept; changed = true; }
       while (line.rows.length > 1) {
         const last = line.rows.length - 1;
         if (line.rows[last].some((c) => c)) break;
         if (line.wraps.some((w) => w.row >= last || (w.kind === 'frac' && w.row + 1 >= last))) break;
-        if (li === cur.line && cur.row >= last) break;
         line.rows.pop();
         changed = true;
       }
+      if (li === cur.line && cur.row >= line.rows.length) cur.row = line.rows.length - 1;
     });
     return changed;
   }
@@ -572,10 +577,12 @@
     return cells.length ? { rows: [cells], wraps: [], text: t } : null;
   }
 
-  function newNote() {
+  // Same as newLine, but the new line is a text note.
+  function newNote(above) {
     snapshot();
-    doc.lines.splice(cur.line + 1, 0, newNoteLine());
-    cur = { line: cur.line + 1, row: 0, col: 0 };
+    const li = above ? cur.line : cur.line + 1;
+    doc.lines.splice(li, 0, newNoteLine());
+    cur = { line: li, row: 0, col: 0 };
     sel = null; armed = null;
     commit();
     focusNote(cur.line, true);
@@ -632,6 +639,7 @@
     }
     const name = KINDS[kind].name;
     const same = line.wraps.find((w) => w.kind === kind && w.row === r && w.start === s && w.end === e);
+    if (same && kind === 'frac') return removeFraction(li, same);
     if (same) {
       snapshot();
       line.wraps = line.wraps.filter((w) => w !== same);
@@ -708,8 +716,38 @@
     const line = doc.lines[li];
     const w = line.wraps.find((x) => x.id === id);
     if (!w) return;
+    if (w.kind === 'frac') return removeFraction(li, w);
     snapshot();
     line.wraps = line.wraps.filter((x) => x !== w);
+    commit();
+  }
+  // Removing a fraction puts it back on one row as a/b (the reverse of wrapping a typed a/b),
+  // so the bottom isn't lost and the row underneath can go.
+  function removeFraction(li, w) {
+    const line = doc.lines[li];
+    if (line.wraps.some((x) => x.kind === 'frac' && x !== w && x.row > w.row && x.start >= w.start && x.end <= w.end)) {
+      return setStatus('This fraction has another fraction in its bottom. Remove that one first.', 'error');
+    }
+    snapshot();
+    const r = w.row, top = line.rows[r], below = line.rows[r + 1] || [];
+    line.wraps = line.wraps.filter((x) => x !== w);
+    let last = -1, topEnd = w.start - 1;
+    for (let c = w.start; c <= w.end; c++) { if (below[c]) last = c; if (top[c]) topEnd = c; }
+    let col = topEnd + 1;
+    if (last >= 0) {
+      const bot = below.slice(w.start, last + 1), at = topEnd + 1, end = at + bot.length;
+      const moving = line.wraps.filter((x) => x.row === r + 1 && x.start >= w.start && x.end <= w.end);
+      // Wraps around the fraction (parentheses, a root, an outer fraction) stretch to cover the new a/b.
+      const around = line.wraps.filter((x) => x.start <= w.start && x.end >= w.end
+        && (x.row === r || (x.kind === 'frac' && x.row < r && bottomOf(line, x) >= r)));
+      for (let k = w.end; k < end; k++) insertCol(line, w.end + 1);
+      top[at] = '/';
+      bot.forEach((ch, k) => { below[w.start + k] = ''; top[at + 1 + k] = ch; });
+      for (const x of moving) { x.row = r; x.start += at + 1 - w.start; x.end += at + 1 - w.start; }
+      for (const x of around) x.end = Math.max(x.end, end);
+      col = end + 1;
+    }
+    if (cur.line === li && cur.row > r) cur = { line: li, row: r, col };
     commit();
   }
 
@@ -931,7 +969,7 @@
       goToLine(li + 1, false) || goToLine(li - 1, true);
     } else if (e.altKey && e.code === 'KeyN') {
       e.preventDefault();
-      newNote();
+      newNote(e.shiftKey);
     }
   });
   function deleteLine(li) {
@@ -1028,7 +1066,7 @@
     if (mod) return;
 
     if (isNote(Ln())) { focusNote(cur.line, true); return; }
-    if (e.altKey && e.code === 'KeyN') { e.preventDefault(); newNote(); return; }
+    if (e.altKey && e.code === 'KeyN') { e.preventDefault(); newNote(e.shiftKey); return; }
     if (e.altKey) {
       const tool = Object.keys(KINDS).find((k) => KINDS[k].code === e.code);
       if (tool) { e.preventDefault(); useTool(tool); return; }
@@ -1138,7 +1176,8 @@
     else pasteBlock(clip);
     refocus();
   });
-  $('addNote').addEventListener('click', () => newNote());
+  $('addNoteBelow').addEventListener('click', () => newNote(false));
+  $('addNoteAbove').addEventListener('click', () => newNote(true));
   $('save').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');

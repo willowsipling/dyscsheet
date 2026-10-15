@@ -108,20 +108,21 @@ body.about {
   color: #fff;
 }
 .note-body {
-  flex: none;
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: flex-start;
   gap: 4px;
   padding: 0 14px;
 }
-/* A note is one grid row tall (more rows if the text wraps) and as wide as the grid. */
+/* A note is one grid row tall (more rows if the text wraps). It fills the sheet's width, and is never narrower than the grid. */
 
 textarea.note {
   font: inherit;
   font-size: calc(1rem * var(--z));
   display: block;
   box-sizing: border-box;
-  width: calc(var(--n) * var(--cell));
+  width: max(calc(var(--n) * var(--cell)), 100%);
   height: var(--cell);
   line-height: var(--cell);
   padding: 0 8px;
