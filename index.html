@@ -202,32 +202,6 @@
   }
   const bottomOf = (line, w) => bottomRange(line, w.row, w.start, w.end);
 
-  // ---------- Example sheet ----------
-  function exampleDoc() {
-    let id = 0;
-    const mk = (rows, wraps) => {
-      const n = Math.max(MIN_COLS, ...rows.map((r) => r.length));
-      const line = { rows: rows.map((r) => [...r]), wraps: wraps.map(([kind, row, start, end, color]) => ({ id: ++id, kind, row, start, end, color })) };
-      setWidth(line, n);
-      return line;
-    };
-    const lines = [
-      mk([['C', 'I', '=', 'x̄', '±', 't', 'α', 's'],
-          ['', '', '', '', '', '', '', 'n', '−', '1']], [['sub', 0, 6, 6], ['frac', 0, 7, 9], ['sqrt', 1, 7, 9], ['paren', 0, 7, 9]]),
-      newNoteLine('Find the t-value from the t-table. df = n − 1 = 1162 − 1 = 1161. That is more than 120, so use the ∞ row. It is a two-tailed test, so use the 95% column. The critical value there is 1.96.'),
-      mk([['9', '5', '%', ' ', 'C', 'I', '=', 'x̄', '±', '1', '.', '9', '6', 's'],
-          ['', '', '', '', '', '', '', '', '', '', '', '', '', 'n', '−', '1']], [['frac', 0, 13, 15], ['sqrt', 1, 13, 15], ['paren', 0, 13, 15]]),
-      newNoteLine('Now put the rest of the values into the formula.'),
-      mk([['3', '.', '4', '2', '±', '1', '.', '9', '6', '4', '.', '3', '5'],
-          ['', '', '', '', '', '', '', '', '', '1', '1', '6', '2', '−', '1']], [['frac', 0, 9, 14], ['sqrt', 1, 9, 14], ['paren', 0, 9, 14]]),
-      newNoteLine('Subtract in the denominator.'),
-      mk([['3', '.', '4', '2', '±', '1', '.', '9', '6', '4', '.', '3', '5'],
-          ['', '', '', '', '', '', '', '', '', '1', '1', '6', '1']], [['frac', 0, 9, 12], ['sqrt', 1, 9, 12], ['paren', 0, 9, 12]]),
-      newNoteLine('Next, calculate the square root.'),
-    ];
-    return { nextId: id + 1, lines };
-  }
-
   // ---------- Turning cells + wraps into math ----------
   const within = (w, s, e) => w.start >= s && w.end <= e;
 
@@ -719,7 +693,7 @@
     if (isNote(line)) {
       return `<section class="line is-note" data-line="${li}">
         <div class="line-head"><span class="ln">${li + 1}</span></div>
-        <div class="note-body"><textarea class="note" id="note-${li}" data-note="${li}" rows="1" aria-label="Note, line ${li + 1}" placeholder="Show your work :3">${esc(line.text)}</textarea>
+        <div class="note-body"><textarea class="note" id="note-${li}" data-note="${li}" rows="1" aria-label="Note, line ${li + 1}" placeholder="Show your work!">${esc(line.text)}</textarea>
           <button class="note-del" data-del-note="${li}" title="Delete this note" aria-label="Delete note ${li + 1}">✕</button></div>
       </section>`;
     }
@@ -1183,7 +1157,7 @@
     const prefs = JSON.parse(localStorage.getItem(PREFS) || 'null');
     if (prefs) { showCode = !!prefs.showCode; showFinished = prefs.showFinished !== false; if (ZOOMS.includes(prefs.zoom)) zoom = prefs.zoom; if (prefs.panel) $('compiled').style.height = prefs.panel; }
   } catch (_) { doc = null; }
-  if (!doc) doc = exampleDoc();
+  if (!doc) doc = { nextId: 1, lines: [blankLine()] };
   $('showCode').checked = showCode;
   $('showFinished').checked = showFinished;
   $('compiled').hidden = !showFinished;
