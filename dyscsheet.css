@@ -32,7 +32,7 @@ body {
   border-bottom: 1px solid #999;
 }
 .topbar h1 {
-  font-size: 1.2em;
+  font-size: 1.5em;
   margin: 4px 0;
   color:magenta;
 }
@@ -71,6 +71,11 @@ body.about {
   overflow: auto;
   outline: none;
   --cell: calc(2.4rem * var(--z));
+}
+/* One row's worth of blank space after the last line, so it isn't flush with the window edge. */
+.sheet {
+  display: block;
+  padding-bottom: var(--cell);
 }
 
 /* Lines sit right on top of each other, like one sheet of graph paper. */
