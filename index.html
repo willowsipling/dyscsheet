@@ -477,7 +477,10 @@
     if (isNote(Ln())) return;
     snapshot();
     const c = side === 'right' ? cur.col + 1 : cur.col;
+    // From the first or last cell inside a wrap, the new column stays inside it.
+    const edge = wrapsAtCursor().filter((w) => side === 'right' ? w.end === cur.col : w.start === cur.col);
     insertCol(Ln(), c);
+    for (const w of edge) { if (side === 'right') w.end++; else w.start--; }
     cur.col = c;
     sel = null;
     commit();
@@ -638,6 +641,16 @@
       }
     }
     const name = KINDS[kind].name;
+    // Re-wrapping a wider selection that starts or ends where a wrap of the same kind does stretches that wrap,
+    // like drawing the root's line longer on paper. (Otherwise a second, nested one would be drawn.)
+    const grow = line.wraps.filter((w) => w.kind === kind && w.row === r && w.start >= s && w.end <= e
+      && (w.start === s || w.end === e) && !(w.start === s && w.end === e))
+      .sort((a, b) => (b.end - b.start) - (a.end - a.start))[0];
+    if (grow) {
+      snapshot();
+      grow.start = s; grow.end = e;
+      return commit();
+    }
     const same = line.wraps.find((w) => w.kind === kind && w.row === r && w.start === s && w.end === e);
     if (same && kind === 'frac') return removeFraction(li, same);
     if (same) {
