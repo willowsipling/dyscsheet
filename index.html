@@ -30,6 +30,24 @@
         <a href="about.html">About / how to use</a>
       </div>
       <div class="row">
+        <div class="group" role="group" aria-label="File">
+          <span class="group-label">File</span>
+          <button id="newSheet" class="danger">New sheet</button>
+          <button id="open">Open file</button>
+          <input type="file" id="fileInput" accept=".json,application/json" hidden>
+          <button id="save">Save file</button>
+          <button id="print">Print / PDF</button>
+        </div>
+        <div class="group" role="group" aria-label="Edit">
+          <span class="group-label">Edit</span>
+          <button id="undo" title="Undo (Cmd/Ctrl+Z)">Undo</button>
+          <button id="redo" title="Redo (Cmd/Ctrl+Shift+Z)">Redo</button>
+          <button id="cutBtn" title="Cut selected cells (Cmd/Ctrl+X)">Cut</button>
+          <button id="copyBtn" title="Copy selected cells (Cmd/Ctrl+C)">Copy</button>
+          <button id="pasteBtn" title="Paste at focus (Cmd/Ctrl+V)">Paste</button>
+        </div>
+      </div>
+      <div class="row">
         <div class="group" role="group" aria-label="Wrap tools">
           <span class="group-label">Wrap</span>
           <span id="tools" class="group"></span>
@@ -45,22 +63,12 @@
       <div class="row">
         <div class="group" role="group" aria-label="Sheet">
           <span class="group-label">Sheet</span>
-          <button id="undo" title="Undo (Cmd/Ctrl+Z)">Undo</button>
-          <button id="redo" title="Redo (Cmd/Ctrl+Shift+Z)">Redo</button>
-          <button id="copyBtn" title="Copy selected cells (Cmd/Ctrl+C)">Copy</button>
-          <button id="cutBtn" title="Cut selected cells (Cmd/Ctrl+X)">Cut</button>
-          <button id="pasteBtn" title="Paste at the cursor (Cmd/Ctrl+V)">Paste</button>
-          <button id="colLeft" title="Add an empty column left of the cursor (Shift+Space)">Add column left</button>
-          <button id="colRight" title="Add an empty column right of the cursor">Add column right</button>
-          <button id="addLineBelow" title="Add an empty math line below this one (Enter)">Add Number Row Below</button>
-          <button id="addLineAbove" title="Add an empty math line above this one (Shift+Enter)">Add Number Row Above</button>
-          <button id="addNoteBelow" title="Add a text note below this line (Option+N)">Add Text Row Below</button>
-          <button id="addNoteAbove" title="Add a text note above this line (Option+Shift+N)">Add Text Row Above</button>
-          <button id="save">Save file</button>
-          <button id="open">Open file</button>
-          <input type="file" id="fileInput" accept=".json,application/json" hidden>
-          <button id="print">Print / PDF</button>
-          <button id="newSheet" class="danger">New sheet</button>
+          <button id="colLeft" title="Add an empty column left of focus (Shift+Space)">Add column left</button>
+          <button id="colRight" title="Add an empty column right of focus">Add column right</button>
+          <button id="addLineBelow" title="Add an empty math line below focused line (Enter)">Add Number Row Below</button>
+          <button id="addLineAbove" title="Add an empty math line above focused line (Shift+Enter)">Add Number Row Above</button>
+          <button id="addNoteBelow" title="Add a text note below focused line (Option+N)">Add Text Row Below</button>
+          <button id="addNoteAbove" title="Add a text note above focused (Option+Shift+N)">Add Text Row Above</button>
         </div>
         <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
         <span class="zoom">Zoom
@@ -76,18 +84,18 @@
     </div>
   </div>
 
-  <div class="sheet-scroll" id="sheetScroll" tabindex="0" aria-label="Math sheet. Type to fill cells; arrow keys move.">
+  <div class="sheet-scroll" id="sheetScroll" tabindex="0" aria-label="This ithe Math sheet. Type to fill cells and use the arrow keys to move.">
     <div class="wrap">
       <main class="sheet" id="sheet"></main>
     </div>
   </div>
 
   <aside class="compiled" id="compiled" aria-label="LaTeX/MathJax output" hidden>
-    <div class="handle" id="handle" title="Drag to resize"></div>
+    <div class="handle" id="handle" title="Drag to resize the Math output"></div>
     <div class="compiled-head">
       <div class="wrap">
         <span class="group-label">LaTeX/MathJax output</span>
-        <label class="toggle"><input type="checkbox" id="showCode"> Show MathJax code</label>
+        <label class="toggle"><input type="checkbox" id="showCode"> Show Obsidian-Friendly MathJax code</label>
       </div>
     </div>
     <div class="compiled-body"><div class="wrap" id="compiledBody"></div></div>
@@ -115,23 +123,23 @@
   };
   const HL_COLORS = [['khaki', 'Yellow'], ['pink', 'Pink'], ['lightblue', 'Blue'], ['palegreen', 'Green']];
   const SYMBOLS = [
-    ['x̄', 'x bar (sample mean)'],
-    ['p̂', 'p hat (sample proportion)'],
-    ['ŷ', 'y hat (predicted y)'],
-    ['tα', 't alpha (critical t-value)'],
-    ['μ', 'mu (population mean)'],
-    ['σ', 'sigma (population standard deviation)'],
-    ['Σ', 'sum'],
     ['α', 'alpha'],
     ['β', 'beta'],
-    ['χ', 'chi'],
-    ['ρ', 'rho'],
     ['λ', 'lambda'],
-    ['θ', 'theta'],
+    ['μ', 'mu (population mean)'],
+    ['p̂', 'p hat (sample proportion)'],
     ['π', 'pi'],
+    ['ρ', 'rho'],
+    ['σ', 'sigma (population standard deviation)'],
+    ['Σ', 'sum'],
+    ['tα', 't alpha (critical t-value)'],
+    ['θ', 'theta'],
+    ['χ', 'chi'],
+    ['ŷ', 'y hat (predicted y)'],
+    ['x̄', 'x bar (sample mean)'],
     ['±', 'plus or minus'],
-    ['×', 'times'],
     ['÷', 'divided by'],
+    ['×', 'times'],
     ['·', 'times (dot)'],
     ['≤', 'less than or equal'],
     ['≥', 'greater than or equal'],
