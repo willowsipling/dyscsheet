@@ -75,10 +75,11 @@
           <div class="group-body">
             <span id="tools" class="group"></span>
           </div>
+          <div class="chips" id="chips" aria-live="polite"></div>
           <span class="group-label">Wrap</span>
         </div>
         <div class="group" role="group" aria-label="Symbols">
-          <div class="group-body">
+          <div class="group-body rows-4">
             <span id="symbols" class="group"></span>
           </div>
           <span class="group-label">Symbols</span>
@@ -100,10 +101,8 @@
         </div>
       </div>
       <div class="explain" id="explain"></div>
-      <div class="info-row">
-        <div class="chips" id="chips" aria-live="polite"></div>
-        <div class="status" id="status" role="status" aria-live="polite"></div>
-      </div>
+      <!-- Status messages are announced from here and shown in the info strip. -->
+      <div class="vh" id="status" role="status" aria-live="polite"></div>
     </div>
   </div>
 
@@ -964,7 +963,8 @@
 
   function setStatus(msg, tone) {
     statusEl.textContent = msg || '';
-    statusEl.className = 'status' + (tone ? ' is-' + tone : '');
+    statusEl.className = 'vh' + (tone ? ' is-' + tone : '');
+    explain();
   }
 
   // ---------- Pointer input ----------
@@ -1318,6 +1318,12 @@
     return s && { where: 'At the cursor', glyph: s.sym, name: s.say, means: s.means, hideKeys: true };
   }
   function explain() {
+    // A status message (like "Tidied the fraction.") comes first, until the next click,
+    // key press, or pointing at a different button.
+    if (statusEl.textContent) {
+      explainEl.innerHTML = `<span class="explain-status${statusEl.classList.contains('is-error') ? ' is-error' : ''}">${esc(statusEl.textContent)}</span>`;
+      return;
+    }
     const info = explainInfo(hovered) || explainInfo(focused) || cursorInfo()
       || { means: 'Point at a button, or tab to it, to see what it does.', hideKeys: true };
     explainEl.innerHTML =
@@ -1329,7 +1335,14 @@
   }
   const topbar = document.querySelector('.topbar');
   const control = (e) => e.target.closest('button, label, input');
-  topbar.addEventListener('pointerover', (e) => { hovered = control(e); explain(); });
+  topbar.addEventListener('pointerover', (e) => {
+    const c = control(e);
+    if (c !== hovered && statusEl.textContent) statusEl.textContent = '';
+    hovered = c;
+    explain();
+  });
+  // Capture phase, so this runs before the click or key does anything (and can set a new message).
+  ['keydown', 'pointerdown'].forEach((type) => document.addEventListener(type, () => { if (statusEl.textContent) setStatus(''); }, true));
   // On a touch screen there's no hover, so the last button tapped stays explained.
   topbar.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') { hovered = null; explain(); } });
   topbar.addEventListener('focusin', (e) => { focused = control(e); explain(); });
