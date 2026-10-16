@@ -7,10 +7,27 @@ billie eilish
 :root {
   --z: 1;
   --cell: calc(2.4rem * var(--z));
+  /* One pink (hue ~344) from pale to dark. Light steps are backgrounds, middle steps are
+     borders, dark steps are text. Every text pair is at least 4.5:1 and every border 3:1. */
+  --pink-50: #fff8fc;
+  --pink-100: #ffe9f5;
+  --pink-200: #ffd7ed;
+  --pink-300: #f7b8db;
+  --pink-400: #e588bc;
+  --pink-500: #c34189;
+  --pink-600: #ac1b6e;
+  --pink-700: #881356;
+  --pink-800: #5f0f3c;
+  --pink-900: #390a23;
+  /* Orange for caution, so it never gets mixed up with the pinks. */
+  --caution: #9a3c00;
+  --caution-bg: #ffead7;
+  --caution-border: #c85d00;
 }
 html, body {
   margin: 0;
   height: 100%;
+  font-family: "Lexend", system-ui, sans-serif;
 }
 [hidden] {
   display: none !important;
@@ -26,54 +43,157 @@ body {
 .wrap {
   padding-inline: 16px;
 }
+
+/* Toolbar */
+
 .topbar {
   flex: none;
   padding-block: 4px;
-  border-bottom: 1px solid #999;
+  color: var(--pink-900);
+  background: var(--pink-200);
+  border-bottom: 1px solid var(--pink-500);
+  accent-color: var(--pink-600);
 }
-.topbar h1 {
-  font-size: 1.5em;
-  margin: 4px 0;
-  color:magenta;
+.topbar a {
+  color: var(--pink-700);
 }
-.row {
-  margin-block: 3px;
-}
-.swatches label {
-  display: inline-block;
-  width: 1em;
-  height: 1em;
-  vertical-align: middle;
-}
-.zoom {
-  margin-left: 1em;
-}
-
-/* Sheet controls as a cross: row buttons above/below the middle, column buttons to the sides. */
-.sheet-row {
+.title-row {
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
+  align-items: baseline;
   gap: 1em;
 }
-.sheet-row > .group {
-  display: flex;
-  align-items: center;
-  gap: 0.75em;
+.topbar h1 {
+  font-size: 2em;
+  margin: 4px 0;
+  color: var(--pink-600);
 }
+.ribbon {
+  display: flex;
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.ribbon > .group {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 12px;
+  border-inline-end: 1px solid var(--pink-400);
+}
+.ribbon > .group:first-child {
+  padding-inline-start: 0;
+}
+.ribbon > .group:last-child {
+  border-inline-end: none;
+}
+/* Small controls stack three high, then start a new column, like a ribbon. */
+.group-body {
+  flex: 1;
+  display: grid;
+  grid-template-rows: repeat(3, auto);
+  grid-auto-flow: column;
+  align-content: start;
+  justify-items: start;
+  gap: 4px 6px;
+}
+#tools, #symbols {
+  display: contents;
+}
+.group-label {
+  margin-top: 6px;
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--pink-700);
+}
+
+.topbar button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-size: 1rem;
+  line-height: 1.5;
+  color: var(--pink-800);
+  background: #fff;
+  border: 1px solid var(--pink-500);
+  border-radius: 0.5rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+@media (prefers-reduced-motion: no-preference) {
+  .topbar button {
+    transition: color 0.15s, background-color 0.15s, border-color 0.15s ease-in-out;
+  }
+}
+.topbar button:hover {
+  background: var(--pink-100);
+  border-color: var(--pink-600);
+}
+.topbar button:active {
+  background: var(--pink-300);
+}
+/* A dark ring with a white halo inside it, so it shows up on the pink bar and on the white button. */
+.topbar button:focus-visible {
+  outline: 3px solid var(--pink-900);
+  outline-offset: 2px;
+  box-shadow: 0 0 0 2px #fff;
+}
+.topbar button.danger {
+  color: var(--caution);
+  background: var(--caution-bg);
+  border-color: var(--caution-border);
+}
+.topbar button.danger::before {
+  content: "⚠" / "";
+}
+.topbar button.danger:hover {
+  background: #fff;
+}
+.topbar button:disabled {
+  opacity: 0.65;
+  pointer-events: none;
+}
+.toggle, .zoom, .swatches {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 2.25rem;
+}
+/* 24px squares (the WCAG minimum target), edged so pink and yellow still show on the pink bar. */
+.swatches label {
+  display: inline-block;
+  box-sizing: border-box;
+  width: 1.5rem;
+  height: 1.5rem;
+  border: 1px solid var(--pink-800);
+  border-radius: 0.375rem;
+  cursor: pointer;
+}
+/* Symbols are square tiles, so they line up like a keypad. */
+.topbar button.sym {
+  display: inline-block; /* not flex, so a built-in subscript stays inline with its letter */
+  width: 2.25rem;
+  padding: 0;
+  font-size: 1.0625rem;
+  line-height: calc(2.25rem - 2px);
+}
+
+/* Sheet controls as a cross: row buttons above/below the middle, column buttons to the sides.
+   Equal columns so every button is the same width and the emoji line up. */
 .pad {
   display: grid;
-  grid-template-columns: auto auto auto;
+  grid-template-columns: repeat(3, 1fr);
   grid-template-areas:
     ".    ta   ."
     ".    na   ."
     "l    .    r"
     ".    nb   ."
     ".    tb   .";
-  gap: 3px 6px;
+  gap: 4px 6px;
 }
-.pad button {
-  white-space: nowrap;
+.topbar .pad button {
+  justify-content: flex-start;
 }
 .pad-ta {
   grid-area: ta;
@@ -93,22 +213,162 @@ body {
 .pad-tb {
   grid-area: tb;
 }
+/* The info strip: what the pointed-at button does, or what the symbol under the cursor means. */
+.explain {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  min-height: 2.25rem;
+  box-sizing: border-box;
+  margin-top: 6px;
+  padding: 6px 12px;
+  background: var(--pink-50);
+  border: 1px solid var(--pink-400);
+  border-radius: 0.5rem;
+}
+.explain-where {
+  font-size: 0.8125rem;
+  color: var(--pink-700);
+}
+.explain-glyph {
+  font-size: 1.25rem;
+  line-height: 1;
+}
+.explain-glyph sub {
+  font-size: 0.65em;
+}
+.explain-means {
+  flex: 1 1 20rem;
+}
+.explain-keys {
+  margin-left: auto;
+  padding: 0 8px;
+  font-size: 0.875rem;
+  white-space: nowrap;
+  color: var(--pink-800);
+  background: var(--pink-100);
+  border: 1px solid var(--pink-500);
+  border-radius: 0.375rem;
+}
 .info-row {
   min-height: 1.8em;
 }
+/* Hidden on screen, still read by screen readers. */
+.vh {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
 .status.is-error {
-  color: #b00;
+  color: var(--caution);
 }
 
-/* about.html shares this file but is an ordinary scrolling page. */
+/* Follow the reader's system settings: stronger text and edges when they ask for more contrast. */
+@media (prefers-contrast: more) {
+  .topbar {
+    background: var(--pink-50);
+    border-bottom-color: var(--pink-900);
+  }
+  .topbar button {
+    color: var(--pink-900);
+    border-color: var(--pink-800);
+    border-width: 2px;
+  }
+  .group-label {
+    color: var(--pink-900);
+    font-weight: 500;
+  }
+  .ribbon > .group {
+    border-inline-end-color: var(--pink-800);
+  }
+}
+/* Windows High Contrast picks its own colors; borders above stay solid so buttons keep their edges. */
+@media (forced-colors: active) {
+  .topbar button:focus-visible {
+    outline-color: Highlight;
+  }
+}
 
-body.about {
+/* about.html and docs.html share this file but are ordinary scrolling pages. */
+
+body.page {
   display: block;
   height: auto;
   overflow: visible;
   margin: 0 auto;
   padding: 8px 16px 32px;
   max-width: 46rem;
+  line-height: 1.6;
+  color: var(--pink-900);
+}
+body.page h1, body.page h2 {
+  color: var(--pink-600);
+  line-height: 1.25;
+}
+body.page a {
+  color: var(--pink-700);
+}
+body.page dt {
+  font-weight: 700;
+}
+body.page dd {
+  margin: 0 0 0.5em 1.5em;
+}
+/* Keyboard shortcuts and the reference card. */
+table.ref {
+  width: 100%;
+  border-collapse: collapse;
+  margin-block: 0.5em 1.5em;
+}
+table.ref th, table.ref td {
+  padding: 6px 8px;
+  text-align: left;
+  vertical-align: top;
+  border-bottom: 1px solid var(--pink-300);
+}
+table.ref thead th {
+  background: var(--pink-100);
+  border-bottom-color: var(--pink-500);
+}
+table.ref tbody th {
+  font-weight: 400;
+  white-space: nowrap;
+}
+.refcard td:last-child {
+  white-space: nowrap;
+}
+.ref-glyph {
+  font-size: 1.25rem;
+}
+.ref-glyph sub {
+  font-size: 0.65em;
+}
+kbd {
+  font: inherit;
+  font-size: 0.875rem;
+  padding: 0 6px;
+  white-space: nowrap;
+  color: var(--pink-800);
+  background: var(--pink-100);
+  border: 1px solid var(--pink-500);
+  border-radius: 0.375rem;
+}
+#printCard {
+  font: inherit;
+  min-height: 2.25rem;
+  padding: 0.25rem 0.75rem;
+  color: var(--pink-800);
+  background: #fff;
+  border: 1px solid var(--pink-500);
+  border-radius: 0.5rem;
+  cursor: pointer;
+}
+#printCard:hover {
+  background: var(--pink-100);
 }
 .sheet-scroll {
   flex: 1;
@@ -154,7 +414,7 @@ body.about {
   padding: 0 4px;
 }
 .line-tools .line-del.is-confirm {
-  background: #b00;
+  background: var(--caution);
   color: #fff;
 }
 .note-body {
@@ -382,7 +642,7 @@ textarea.note {
   white-space: pre-wrap;
 }
 .err {
-  color: #b00;
+  color: var(--caution);
 }
 
 @media print {
@@ -413,5 +673,15 @@ textarea.note {
   .compiled {
     height: auto !important;
     max-height: none;
+  }
+  .no-print, body.page nav, .page-nav {
+    display: none;
+  }
+  /* "Print just the reference card" on docs.html. */
+  body.print-card > :not(#refcard) {
+    display: none !important;
+  }
+  table.ref tr {
+    break-inside: avoid;
   }
 }

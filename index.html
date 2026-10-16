@@ -4,7 +4,11 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>dyscsheet</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&display=swap">
 <link rel="stylesheet" href="dyscsheet.css">
+<script src="dyscsheet-data.js"></script>
 <script>
   window.MathJax = {
     loader: { load: ['[tex]/bbox', '[tex]/color'] },
@@ -27,58 +31,66 @@
     <div class="wrap">
       <div class="title-row">
         <h1>dysc<span>sheet</span></h1>
-        <a href="about.html">About / how to use</a>
+        <a href="docs.html">Documentation / How To</a>
+        <a href="about.html">About</a>
       </div>
-      <div class="row">
+      <div class="ribbon">
         <div class="group" role="group" aria-label="File">
+          <div class="group-body">
+            <button id="newSheet" class="danger">New sheet</button>
+            <button id="open">Open file</button>
+            <input type="file" id="fileInput" accept=".json,application/json" hidden>
+            <button id="save">Save file</button>
+            <button id="print">Print / PDF</button>
+            <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
+          </div>
           <span class="group-label">File</span>
-          <button id="newSheet" class="danger">New sheet</button>
-          <button id="open">Open file</button>
-          <input type="file" id="fileInput" accept=".json,application/json" hidden>
-          <button id="save">Save file</button>
-          <button id="print">Print / PDF</button>
-          <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
         </div>
         <div class="group" role="group" aria-label="Edit">
-          <span class="group-label">Edit</span>
-          <button id="undo" title="Undo (Cmd/Ctrl+Z)">Undo</button>
-          <button id="redo" title="Redo (Cmd/Ctrl+Shift+Z)">Redo</button>
-          <button id="cutBtn" title="Cut selected cells (Cmd/Ctrl+X)">Cut</button>
-          <button id="copyBtn" title="Copy selected cells (Cmd/Ctrl+C)">Copy</button>
-          <button id="pasteBtn" title="Paste at focus (Cmd/Ctrl+V)">Paste</button>
-          <span class="zoom">Zoom
-            <button id="zoomOut" title="Make the grid smaller" aria-label="Zoom out">−</button>
-            <button id="zoomReset" title="Back to 100%">100%</button>
-            <button id="zoomIn" title="Make the grid bigger" aria-label="Zoom in">+</button>
-          </span>
-        </div>
-      </div>
-      <div class="row">
-        <div class="group" role="group" aria-label="Wrap tools">
-          <span class="group-label">Wrap</span>
-          <span id="tools" class="group"></span>
-          <span class="swatches" role="radiogroup" aria-label="Highlight color" id="swatches"></span>
-        </div>
-      </div>
-      <div class="row">
-        <div class="group" role="group" aria-label="Symbols">
-          <span class="group-label">Symbols</span>
-          <span id="symbols" class="group"></span>
-        </div>
-      </div>
-      <div class="row sheet-row">
-        <div class="group" role="group" aria-label="Sheet">
-          <span class="group-label">Sheet</span>
-          <div class="pad">
-            <button id="addNoteAbove" class="pad-ta" title="Add a text note above focused (Option+Shift+N)"><span aria-hidden="true">⬆️💬</span> Add Text Row Above</button>
-            <button id="addLineAbove" class="pad-na" title="Add an empty math line above focused line (Shift+Enter)"><span aria-hidden="true">⬆️🔢</span> Add Number Row Above</button>
-            <button id="colLeft" class="pad-l" title="Add an empty column left of focus (Shift+Space)"><span aria-hidden="true">⬅️</span> Add Column Left</button>
-            <button id="colRight" class="pad-r" title="Add an empty column right of focus"><span aria-hidden="true">➡️</span> Add Column Right</button>
-            <button id="addLineBelow" class="pad-nb" title="Add an empty math line below focused line (Enter)"><span aria-hidden="true">⬇️🔢</span> Add Number Row Below</button>
-            <button id="addNoteBelow" class="pad-tb" title="Add a text note below focused line (Option+N)"><span aria-hidden="true">⬇️💬</span> Add Text Row Below</button>
+          <div class="group-body">
+            <button id="undo">Undo</button>
+            <button id="redo">Redo</button>
+            <button id="cutBtn">Cut</button>
+            <button id="copyBtn">Copy</button>
+            <button id="pasteBtn">Paste</button>
+            <span class="zoom">Zoom
+              <button id="zoomOut" aria-label="Zoom out">−</button>
+              <button id="zoomReset">100%</button>
+              <button id="zoomIn" aria-label="Zoom in">+</button>
+            </span>
           </div>
+          <span class="group-label">Edit</span>
+        </div>
+        <div class="group" role="group" aria-label="Wrap tools">
+          <div class="group-body">
+            <span id="tools" class="group"></span>
+            <span class="swatches" role="radiogroup" aria-label="Highlight color" id="swatches"></span>
+          </div>
+          <span class="group-label">Wrap</span>
+        </div>
+        <div class="group" role="group" aria-label="Symbols">
+          <div class="group-body">
+            <span id="symbols" class="group"></span>
+          </div>
+          <span class="group-label">Symbols</span>
+        </div>
+        <div class="group" role="group" aria-label="Sheet">
+          <div class="group-body">
+            <div class="pad">
+              <button id="addNoteAbove" class="pad-ta">
+                <span aria-hidden="true">⬆️💬</span> Add Text Row Above
+              </button>
+              <button id="addLineAbove" class="pad-na"><span aria-hidden="true">⬆️🧮</span> Add Number Row Above</button>
+              <button id="colLeft" class="pad-l"><span aria-hidden="true">⬅️</span> Add Column Left</button>
+              <button id="colRight" class="pad-r"><span aria-hidden="true">➡️</span> Add Column Right</button>
+              <button id="addLineBelow" class="pad-nb"><span aria-hidden="true">⬇️🧮</span> Add Number Row Below</button>
+              <button id="addNoteBelow" class="pad-tb"><span aria-hidden="true">⬇️💬</span> Add Text Row Below</button>
+            </div>
+          </div>
+          <span class="group-label">Sheet</span>
         </div>
       </div>
+      <div class="explain" id="explain"></div>
       <div class="info-row">
         <div class="chips" id="chips" aria-live="polite"></div>
         <div class="status" id="status" role="status" aria-live="polite"></div>
@@ -113,44 +125,8 @@
   const OLD_STORE = 'dyscsheet.v1';
   const PREFS = 'dyscsheet.prefs';
 
-  const KINDS = {
-    sqrt:  { label: '√',   name: 'Square root',     code: 'KeyR',   key: 'R' },
-    frac:  { label: 'a/b', name: 'Fraction',        code: 'KeyF',   key: 'F' },
-    paren: { label: '( )', name: 'Big parentheses', code: 'KeyP',   key: 'P' },
-    sup:   { label: 'x²',  name: 'Exponent',        code: 'Digit6', key: '6' },
-    sub:   { label: 'x₂',  name: 'Subscript',       code: 'Minus',  key: '-' },
-    bar:   { label: 'x̄',   name: 'Bar',             code: 'KeyB',   key: 'B' },
-    hat:   { label: 'p̂',   name: 'Hat',             code: 'KeyT',   key: 'T' },
-    hl:    { label: 'Highlight', name: 'Highlight', code: 'KeyH',   key: 'H' },
-  };
+  const { KINDS, SYMBOLS, BUTTONS, show } = DYSC;
   const HL_COLORS = [['khaki', 'Yellow'], ['pink', 'Pink'], ['lightblue', 'Blue'], ['palegreen', 'Green']];
-  const SYMBOLS = [
-    ['α', 'alpha'],
-    ['β', 'beta'],
-    ['H₀', 'H naught (null hypothesis)'],
-    ['H₁', 'H one (research hypothesis)'],
-    ['λ', 'lambda'],
-    ['μ', 'mu (population mean)'],
-    ['p̂', 'p hat (sample proportion)'],
-    ['π', 'pi'],
-    ['ρ', 'rho'],
-    ['σ', 'sigma (population standard deviation)'],
-    ['Σ', 'sum'],
-    ['tα', 't alpha (critical t-value)'],
-    ['θ', 'theta'],
-    ['χ', 'chi'],
-    ['ŷ', 'y hat (predicted y)'],
-    ['x̄', 'X bar (sample mean)'],
-    ['±', 'plus or minus'],
-    ['÷', 'divided by'],
-    ['×', 'times'],
-    ['·', 'times (dot)'],
-    ['≤', 'less than or equal'],
-    ['≥', 'greater than or equal'],
-    ['≠', 'not equal'],
-    ['≈', 'approximately'],
-    ['∞', 'infinity'],
-  ];
 
   // How each cell's contents become MathJax (TeX) code. Anything not listed passes through as-is.
   const TEX = {
@@ -194,10 +170,6 @@
     '\\': '\\backslash',
     '~': '\\sim',
   };
-
-  // Symbols that need HTML to look right in the grid and on their button (no Unicode subscript α exists).
-  const SHOW = { 'tα': 't<sub>α</sub>', 'H₀': 'H<sub>0</sub>', 'H₁': 'H<sub>1</sub>' };
-  const show = (ch) => SHOW[ch] || esc(ch);
 
   // ---------- State ----------
   // A line is a band of rows that share columns. Row 0 is the main row;
@@ -974,11 +946,12 @@
     const ws = wrapsAtCursor();
     $('chips').innerHTML = ws.length
       ? '<span>Around this cell:</span>' + ws.map((w) =>
-          `<button class="chip" data-remove="${w.id}" title="Remove this ${esc(KINDS[w.kind].name.toLowerCase())}">${esc(KINDS[w.kind].label === 'Highlight' ? 'Highlight' : KINDS[w.kind].label + ' ' + KINDS[w.kind].name)} <b>✕</b></button>`).join('')
+          `<button class="chip" data-remove="${w.id}">${esc(KINDS[w.kind].label === 'Highlight' ? 'Highlight' : KINDS[w.kind].label + ' ' + KINDS[w.kind].name)} <b>✕</b></button>`).join('')
       : '';
 
     const cell = sheet.querySelector(`.cell[data-line="${cur.line}"][data-row="${cur.row}"][data-col="${cur.col}"]`);
     if (cell && !dragging) cell.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    explain();
   }
 
   function setStatus(msg, tone) {
@@ -1218,8 +1191,8 @@
   const refocus = () => sheetScroll.focus({ preventScroll: true });
 
   $('tools').innerHTML = Object.entries(KINDS).map(([k, v]) =>
-    `<button class="tool" data-kind="${k}" aria-pressed="false" title="${esc(v.name)} (Option+${v.key})">${esc(v.label)}</button>`
-    + (k === 'frac' ? '<button id="tidyFrac" title="Remove the blank cells inside the fraction around the box and shrink it to fit">Tidy fraction</button>' : '')
+    `<button class="tool" data-kind="${k}" aria-pressed="false" aria-label="${esc(v.name)}">${esc(v.label)}</button>`
+    + (k === 'frac' ? '<button id="tidyFrac">Tidy fraction</button>' : '')
   ).join('');
   $('tools').addEventListener('click', (e) => {
     const b = e.target.closest('button.tool');
@@ -1227,7 +1200,7 @@
   });
 
   $('swatches').innerHTML = HL_COLORS.map(([c, name], i) =>
-    `<input type="radio" name="hl" id="hl-${c}" value="${c}"${i === 0 ? ' checked' : ''}><label for="hl-${c}" title="${name} highlight" style="background:${c}"><span hidden>${name}</span></label>`
+    `<input type="radio" name="hl" id="hl-${c}" value="${c}"${i === 0 ? ' checked' : ''}><label for="hl-${c}" style="background:${c}"><span class="vh">${name}</span></label>`
   ).join('');
   $('swatches').addEventListener('change', (e) => {
     hlColor = e.target.value;
@@ -1236,8 +1209,8 @@
     refocus();
   });
 
-  $('symbols').innerHTML = SYMBOLS.map(([s, name]) =>
-    `<button class="sym" data-sym="${esc(s)}" title="${esc(name)}" aria-label="${esc(name)}">${show(s)}</button>`
+  $('symbols').innerHTML = SYMBOLS.map(({ sym, say }) =>
+    `<button class="sym" data-sym="${esc(sym)}" aria-label="${esc(say)}">${show(sym)}</button>`
   ).join('');
   $('symbols').addEventListener('pointerdown', (e) => { if (e.target.closest('button.sym')) e.preventDefault(); });
   $('symbols').addEventListener('click', (e) => {
@@ -1251,6 +1224,69 @@
     }
     if (isNote(Ln())) return focusNote(cur.line, true);
     typeChar(b.dataset.sym); refocus();
+  });
+
+  // ---------- Info strip ----------
+  // Explains whatever toolbar control is pointed at or tabbed to; otherwise the symbol under the grid cursor.
+  const explainEl = $('explain');
+  let hovered = null, focused = null;
+
+  function explainInfo(el) {
+    if (!el) return null;
+    if (el.matches('button.tool')) {
+      const k = KINDS[el.dataset.kind];
+      return { glyph: k.label === 'Highlight' ? '' : k.label, name: k.name, means: k.means, keys: k.keys };
+    }
+    if (el.matches('button.sym')) {
+      const s = DYSC.symbol(el.dataset.sym);
+      return { glyph: s.sym, name: s.say, means: s.means };
+    }
+    if (el.matches('button.chip')) {
+      const w = wrapsAtCursor().find((x) => x.id === +el.dataset.remove);
+      const name = w ? KINDS[w.kind].name.toLowerCase() : 'wrap';
+      return { name: `Remove ${name}`, means: `Takes the ${name} off these cells. What's inside stays.` };
+    }
+    const swatch = el.closest('.swatches') && (el.matches('input') ? el : $(el.htmlFor));
+    if (swatch) {
+      const name = HL_COLORS.find(([c]) => c === swatch.value)[1];
+      return { name: `${name} highlight`, means: 'Picks the colour the Highlight tool uses. If the cursor is in a highlight, it changes that one too.' };
+    }
+    const id = el.matches('label') && el.control ? el.control.id : el.id;
+    return BUTTONS[id] || null;
+  }
+  function cursorInfo() {
+    if (!doc || isNote(Ln())) return null;
+    const row = Ln().rows[cur.row];
+    const s = row && DYSC.symbol(row[cur.col]);
+    return s && { where: 'At the cursor', glyph: s.sym, name: s.say, means: s.means, hideKeys: true };
+  }
+  function explain() {
+    const info = explainInfo(hovered) || explainInfo(focused) || cursorInfo()
+      || { means: 'Point at a button, or tab to it, to see what it does.', hideKeys: true };
+    explainEl.innerHTML =
+      (info.where ? `<span class="explain-where">${esc(info.where)}</span>` : '')
+      + (info.glyph ? `<span class="explain-glyph">${show(info.glyph)}</span>` : '')
+      + (info.name ? `<strong class="explain-name">${esc(info.name)}</strong>` : '')
+      + `<span class="explain-means">${esc(info.means)}</span>`
+      + (info.hideKeys ? '' : `<span class="explain-keys">${esc(DYSC.keysText(info.keys))}</span>`);
+  }
+  const topbar = document.querySelector('.topbar');
+  const control = (e) => e.target.closest('button, label, input');
+  topbar.addEventListener('pointerover', (e) => { hovered = control(e); explain(); });
+  // On a touch screen there's no hover, so the last button tapped stays explained.
+  topbar.addEventListener('pointerleave', (e) => { if (e.pointerType !== 'touch') { hovered = null; explain(); } });
+  topbar.addEventListener('focusin', (e) => { focused = control(e); explain(); });
+  topbar.addEventListener('focusout', () => { focused = null; explain(); });
+
+  // Screen readers get the same words as the strip, read after each control's name.
+  const descs = document.createElement('div');
+  descs.hidden = true;
+  document.body.append(descs);
+  topbar.querySelectorAll('button, input').forEach((el, i) => {
+    const info = explainInfo(el);
+    if (!info) return;
+    descs.insertAdjacentHTML('beforeend', `<span id="desc-${i}">${esc(info.means)} ${info.keys ? 'Shortcut: ' + esc(DYSC.keysText(info.keys)) : 'No shortcut'}.</span>`);
+    el.setAttribute('aria-describedby', `desc-${i}`);
   });
 
   $('undo').addEventListener('click', () => { undo(); refocus(); });

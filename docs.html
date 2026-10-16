@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dyscsheet documentation</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="dyscsheet.css">
+<script src="dyscsheet-data.js"></script>
+</head>
+<body class="page">
+  <p class="page-nav"><a href="./">← Back to dyscsheet</a> · <a href="about.html">About</a></p>
+  <h1>Documentation / How To</h1>
+
+  <nav aria-label="On this page">
+    <ul>
+      <li><a href="#start">Getting started</a></li>
+      <li><a href="#toolbar">The toolbar</a></li>
+      <li><a href="#wrap">Using the wrap tools</a></li>
+      <li><a href="#room">Making room inside a root or fraction</a></li>
+      <li><a href="#tidy">Tidy fraction</a></li>
+      <li><a href="#output">LaTeX/MathJax output and Obsidian</a></li>
+      <li><a href="#keys">Keyboard shortcuts</a></li>
+      <li><a href="#refcard">Reference card</a></li>
+    </ul>
+  </nav>
+
+  <h2 id="start">Getting started</h2>
+  <p>The sheet is graph paper: every number, letter or symbol gets its own box, so things stay lined up. Click a box (or use the arrow keys) and type.</p>
+  <ul>
+    <li><strong>Number rows</strong> are for maths. Press Enter to start a new one.</li>
+    <li><strong>Text rows</strong> are for words, like notes to yourself about what a step means.</li>
+    <li>Your work saves in this browser by itself. Use <strong>Save file</strong> to keep a copy on your computer.</li>
+  </ul>
+
+  <h2 id="toolbar">The toolbar</h2>
+  <p>Point at any button, or tab to it with the keyboard, and the strip under the toolbar says what it does and its shortcut. When the cursor is on a symbol in your work, the strip says what that symbol means.</p>
+  <dl>
+    <dt>File</dt>
+    <dd>Start a new sheet, open or save a file, print, and show the finished LaTeX/MathJax version of your work.</dd>
+    <dt>Edit</dt>
+    <dd>Undo, redo, cut, copy, paste, and zoom the grid.</dd>
+    <dt>Wrap</dt>
+    <dd>Roots, fractions, parentheses, exponents, subscripts, bars, hats and highlights. See <a href="#wrap">Using the wrap tools</a>.</dd>
+    <dt>Symbols</dt>
+    <dd>Greek letters and maths signs. Click one to type it at the cursor. The <a href="#refcard">reference card</a> lists what each one means.</dd>
+    <dt>Sheet</dt>
+    <dd>Add rows above and below, and columns left and right, laid out the way they'll appear around the cursor.</dd>
+  </dl>
+
+  <h2 id="wrap">Using the wrap tools</h2>
+  <p>There are two ways to use a wrap tool:</p>
+  <ol>
+    <li>Select the cells first (drag across them, or hold Shift and use the arrow keys), then press the tool.</li>
+    <li>Press the tool first, then drag across the cells you want it around.</li>
+  </ol>
+  <p>When the cursor is inside a wrap, it's listed under the strip. Press the ✕ on it to take the wrap off. What's inside stays.</p>
+
+  <h2 id="room">Making room inside a root or fraction</h2>
+  <ol>
+    <li>Type the extra bits you want to add to the end of the root. Then select by dragging from the start of the root, and press the root button. This extends the root instead of making a double root.</li>
+    <li>Using "Add Column Left/Right" from inside the root also extends the root.</li>
+  </ol>
+
+  <h2 id="tidy">Tidy fraction</h2>
+  <p>If you copy a fraction from the line above and change parts of it, it can end up with leftover blank spaces or a fraction bar that's too long. Select the junk cells of the leftover fraction, then press <strong>Tidy fraction</strong> in the Wrap panel (right after the fraction button). You may have to make judicious use of Undo lol.</p>
+  <p><strong>Note:</strong> it can't tidy a fraction that has another fraction in its top. Sorry!</p>
+
+  <h2 id="output">LaTeX/MathJax output and Obsidian</h2>
+  <p>Tick <strong>Render LaTeX/MathJax Output</strong> in the File panel to see your work as finished, typeset maths below the sheet. Drag the bar at the top of that panel to make it taller or shorter.</p>
+  <p>Tick <strong>Show Obsidian-Friendly MathJax code</strong> in that panel to get code you can paste straight into Obsidian. You'll need to put double <code>$$</code> around it.</p>
+
+  <h2 id="keys">Keyboard shortcuts</h2>
+  <p class="keys-note"></p>
+  <table class="ref">
+    <thead><tr><th scope="col">Keys</th><th scope="col">What it does</th></tr></thead>
+    <tbody id="keysBody"></tbody>
+  </table>
+
+  <section id="refcard" class="refcard">
+    <h2>Reference card</h2>
+    <p class="no-print"><button type="button" id="printCard">Print just the reference card</button></p>
+
+    <h3>Symbols</h3>
+    <table class="ref">
+      <thead><tr><th scope="col">Symbol</th><th scope="col">Say it</th><th scope="col">Meaning</th><th scope="col">Shortcut</th></tr></thead>
+      <tbody id="symBody"></tbody>
+    </table>
+
+    <h3>Wrap tools</h3>
+    <table class="ref">
+      <thead><tr><th scope="col">Tool</th><th scope="col">Name</th><th scope="col">Meaning</th><th scope="col">Shortcut</th></tr></thead>
+      <tbody id="toolBody"></tbody>
+    </table>
+  </section>
+
+<script>
+(() => {
+  'use strict';
+  const { KINDS, SYMBOLS, BUTTONS, MORE_KEYS, esc, show, keysText } = DYSC;
+  const $ = (id) => document.getElementById(id);
+  const row = (cells) => '<tr>' + cells.map((c, i) => i === 0 ? `<th scope="row">${c}</th>` : `<td>${c}</td>`).join('') + '</tr>';
+  const kbd = (keys) => `<kbd>${esc(keysText(keys))}</kbd>`;
+
+  $('symBody').innerHTML = SYMBOLS.map((s) =>
+    row([`<span class="ref-glyph">${show(s.sym)}</span>`, esc(s.say), esc(s.means), esc(keysText(s.keys))])).join('');
+
+  // Tidy fraction sits right after Fraction, as it does in the toolbar.
+  $('toolBody').innerHTML = Object.values(KINDS).flatMap((k) => {
+    const out = [row([`<span class="ref-glyph">${esc(k.label === 'Highlight' ? '' : k.label)}</span>`, esc(k.name), esc(k.means), esc(keysText(k.keys))])];
+    if (k === KINDS.frac) out.push(row(['', esc(BUTTONS.tidyFrac.name), esc(BUTTONS.tidyFrac.means), esc(keysText(BUTTONS.tidyFrac.keys))]));
+    return out;
+  }).join('');
+
+  const shortcuts = [
+    ...Object.values(BUTTONS).filter((b) => b.keys).map((b) => [b.keys, `${b.name}: ${b.means}`]),
+    ...Object.values(KINDS).map((k) => [k.keys, `${k.name}: ${k.means}`]),
+    ...MORE_KEYS.map((m) => [m.keys, m.means]),
+  ];
+  $('keysBody').innerHTML = shortcuts.map(([keys, what]) => row([kbd(keys), esc(what)])).join('');
+  document.querySelector('.keys-note').textContent = keysText(['mod']) === 'Cmd'
+    ? 'Shown for a Mac. On Windows, use Ctrl for Cmd and Alt for Option.'
+    : 'Shown for Windows and Linux. On a Mac, use Cmd for Ctrl and Option for Alt.';
+
+  $('printCard').addEventListener('click', () => {
+    document.body.classList.add('print-card');
+    window.print();
+  });
+  window.addEventListener('afterprint', () => document.body.classList.remove('print-card'));
+})();
+</script>
+</body>
+</html>
