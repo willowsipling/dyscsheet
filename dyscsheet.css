@@ -59,8 +59,91 @@ body {
 }
 .title-row {
   display: flex;
-  align-items: baseline;
-  gap: 1em;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 1em;
+}
+
+/* File, Edit and View menus, like a Mac app's menu bar. Each opens over the ribbon. */
+.menubar {
+  display: flex;
+  gap: 2px;
+}
+.menu-wrap {
+  position: relative;
+}
+.topbar .menu-title {
+  font-weight: 500;
+  background: transparent;
+  border-color: transparent;
+}
+.topbar .menu-title:hover {
+  background: var(--pink-100);
+  border-color: var(--pink-500);
+}
+.topbar .menu-title[aria-expanded="true"] {
+  background: var(--pink-300);
+  border-color: var(--pink-600);
+}
+.menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 17rem;
+  padding: 4px;
+  background: #fff;
+  border: 1px solid var(--pink-500);
+  border-radius: 0.5rem;
+  box-shadow: 0 6px 20px rgb(57 10 35 / 0.18);
+}
+.menu hr {
+  margin: 4px 8px;
+  border: none;
+  border-top: 1px solid var(--pink-300);
+}
+.topbar .menu .menu-item {
+  justify-content: space-between;
+  gap: 2rem;
+  width: 100%;
+  min-height: 2.25rem;
+  text-align: left;
+  background: transparent;
+  border-color: transparent;
+  border-radius: 0.375rem;
+}
+.topbar .menu .menu-item:hover {
+  background: var(--pink-100);
+  border-color: var(--pink-500);
+}
+/* Inside a menu the focus ring sits just inside the item, so it can't cover its neighbours. */
+.topbar .menu .menu-item:focus-visible, .menu .toggle:has(input:focus-visible) {
+  outline: 3px solid var(--pink-900);
+  outline-offset: -3px;
+  box-shadow: none;
+}
+.topbar .menu .menu-item.danger {
+  justify-content: flex-start;
+  gap: 0.375rem;
+  color: var(--caution);
+}
+.menu-keys {
+  font-size: 0.875rem;
+  color: var(--pink-700);
+}
+.topbar .menu .menu-item.toggle {
+  justify-content: flex-start;
+  gap: 0.5rem;
+  white-space: nowrap;
+  box-sizing: border-box;
+  padding: 0.25rem 0.75rem;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.menu .zoom {
+  padding: 0.25rem 0.75rem;
 }
 .topbar h1 {
   font-size: 2em;
@@ -96,6 +179,10 @@ body {
 }
 #tools, #symbols {
   display: contents;
+}
+/* a/b, Tidy a/b and Highlight share the Wrap panel's first column at one width. */
+.topbar #tools > :is([data-kind="frac"], #tidyFrac, [data-kind="hl"]) {
+  justify-self: stretch;
 }
 .group-label {
   margin-top: 6px;
@@ -154,21 +241,11 @@ body {
   opacity: 0.65;
   pointer-events: none;
 }
-.toggle, .zoom, .swatches {
+.toggle, .zoom {
   display: inline-flex;
   align-items: center;
   gap: 4px;
   min-height: 2.25rem;
-}
-/* 24px squares (the WCAG minimum target), edged so pink and yellow still show on the pink bar. */
-.swatches label {
-  display: inline-block;
-  box-sizing: border-box;
-  width: 1.5rem;
-  height: 1.5rem;
-  border: 1px solid var(--pink-800);
-  border-radius: 0.375rem;
-  cursor: pointer;
 }
 /* Symbols are square tiles, so they line up like a keypad. */
 .topbar button.sym {
@@ -179,17 +256,17 @@ body {
   line-height: calc(2.25rem - 2px);
 }
 
-/* Sheet controls as a cross: row buttons above/below the middle, column buttons to the sides.
-   Equal columns so every button is the same width and the emoji line up. */
+/* Sheet controls: row buttons stacked above and below, the two column buttons side by side
+   at half width in the middle, so the panel is no wider than one row button. */
 .pad {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
   grid-template-areas:
-    ".    ta   ."
-    ".    na   ."
-    "l    .    r"
-    ".    nb   ."
-    ".    tb   .";
+    "ta   ta"
+    "na   na"
+    "l    r"
+    "nb   nb"
+    "tb   tb";
   gap: 4px 6px;
 }
 .topbar .pad button {

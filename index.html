@@ -31,40 +31,49 @@
     <div class="wrap">
       <div class="title-row">
         <h1>dysc<span>sheet</span></h1>
+        <!-- File, Edit and View fold into menus, like a Mac app's menu bar, to leave room for the sheet. -->
+        <nav class="menubar" aria-label="Menus">
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="fileMenu">File</button>
+            <div class="menu" id="fileMenu" hidden>
+              <button id="newSheet" class="menu-item danger">New sheet</button>
+              <button id="open" class="menu-item">Open file</button>
+              <input type="file" id="fileInput" accept=".json,application/json" hidden>
+              <button id="save" class="menu-item">Save file</button>
+              <button id="print" class="menu-item">Print / PDF</button>
+            </div>
+          </div>
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="editMenu">Edit</button>
+            <div class="menu" id="editMenu" hidden>
+              <button id="undo" class="menu-item">Undo</button>
+              <button id="redo" class="menu-item">Redo</button>
+              <hr>
+              <button id="cutBtn" class="menu-item">Cut</button>
+              <button id="copyBtn" class="menu-item">Copy</button>
+              <button id="pasteBtn" class="menu-item">Paste</button>
+            </div>
+          </div>
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="viewMenu">View</button>
+            <div class="menu" id="viewMenu" hidden>
+              <label class="menu-item toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
+              <hr>
+              <span class="zoom">Zoom
+                <button id="zoomOut" aria-label="Zoom out">−</button>
+                <button id="zoomReset">100%</button>
+                <button id="zoomIn" aria-label="Zoom in">+</button>
+              </span>
+            </div>
+          </div>
+        </nav>
         <a href="docs.html">Documentation / How To</a>
         <a href="about.html">About</a>
       </div>
       <div class="ribbon">
-        <div class="group" role="group" aria-label="File">
-          <div class="group-body">
-            <button id="newSheet" class="danger">New sheet</button>
-            <button id="open">Open file</button>
-            <input type="file" id="fileInput" accept=".json,application/json" hidden>
-            <button id="save">Save file</button>
-            <button id="print">Print / PDF</button>
-            <label class="toggle"><input type="checkbox" id="showFinished"> Render LaTeX/MathJax Output</label>
-          </div>
-          <span class="group-label">File</span>
-        </div>
-        <div class="group" role="group" aria-label="Edit">
-          <div class="group-body">
-            <button id="undo">Undo</button>
-            <button id="redo">Redo</button>
-            <button id="cutBtn">Cut</button>
-            <button id="copyBtn">Copy</button>
-            <button id="pasteBtn">Paste</button>
-            <span class="zoom">Zoom
-              <button id="zoomOut" aria-label="Zoom out">−</button>
-              <button id="zoomReset">100%</button>
-              <button id="zoomIn" aria-label="Zoom in">+</button>
-            </span>
-          </div>
-          <span class="group-label">Edit</span>
-        </div>
         <div class="group" role="group" aria-label="Wrap tools">
           <div class="group-body">
             <span id="tools" class="group"></span>
-            <span class="swatches" role="radiogroup" aria-label="Highlight color" id="swatches"></span>
           </div>
           <span class="group-label">Wrap</span>
         </div>
@@ -126,7 +135,6 @@
   const PREFS = 'dyscsheet.prefs';
 
   const { KINDS, SYMBOLS, BUTTONS, show } = DYSC;
-  const HL_COLORS = [['khaki', 'Yellow'], ['pink', 'Pink'], ['lightblue', 'Blue'], ['palegreen', 'Green']];
 
   // How each cell's contents become MathJax (TeX) code. Anything not listed passes through as-is.
   const TEX = {
@@ -180,7 +188,7 @@
   let cur = { line: 0, row: 0, col: 0 };
   let sel = null;            // { line, row, a, b }
   let armed = null;          // tool waiting for a drag
-  let hlColor = 'khaki';
+  const hlColor = 'khaki';   // highlights are yellow only for now; sheets saved with other colours still show them
   let showCode = false;
   let showFinished = false;   // always starts off; not remembered between visits
   let dragging = false;
@@ -1118,6 +1126,7 @@
     if (e.target.closest && e.target.closest('input, select, textarea')) return;
     if (e.target.closest && e.target.closest('button') && (e.key === 'Enter' || e.key === ' ')) return;
     const mod = e.metaKey || e.ctrlKey;
+    if (!mod && e.target.closest && e.target.closest('.menubar')) return;   // the open menu uses arrows and Escape
     if (mod && e.key.toLowerCase() === 'z') { e.preventDefault(); e.shiftKey ? redo() : undo(); return; }
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
     if (mod && !isNote(Ln())) {
@@ -1190,23 +1199,16 @@
   // ---------- Toolbar ----------
   const refocus = () => sheetScroll.focus({ preventScroll: true });
 
-  $('tools').innerHTML = Object.entries(KINDS).map(([k, v]) =>
-    `<button class="tool" data-kind="${k}" aria-pressed="false" aria-label="${esc(v.name)}">${esc(v.label)}</button>`
-    + (k === 'frac' ? '<button id="tidyFrac">Tidy fraction</button>' : '')
+  // The panel fills top to bottom, three to a column: the wide buttons share the first column,
+  // then the small ones pair up across the rows (√ ( ), x² x₂, x̄ p̂).
+  const TOOL_ORDER = ['frac', 'tidy', 'hl', 'sqrt', 'sup', 'bar', 'paren', 'sub', 'hat'];
+  $('tools').innerHTML = TOOL_ORDER.map((k) => k === 'tidy'
+    ? '<button id="tidyFrac">Tidy a/b</button>'
+    : `<button class="tool" data-kind="${k}" aria-pressed="false" aria-label="${esc(KINDS[k].name)}">${esc(KINDS[k].label)}</button>`
   ).join('');
   $('tools').addEventListener('click', (e) => {
     const b = e.target.closest('button.tool');
     if (b) { useTool(b.dataset.kind); refocus(); }
-  });
-
-  $('swatches').innerHTML = HL_COLORS.map(([c, name], i) =>
-    `<input type="radio" name="hl" id="hl-${c}" value="${c}"${i === 0 ? ' checked' : ''}><label for="hl-${c}" style="background:${c}"><span class="vh">${name}</span></label>`
-  ).join('');
-  $('swatches').addEventListener('change', (e) => {
-    hlColor = e.target.value;
-    const w = wrapsAtCursor().find((x) => x.kind === 'hl');
-    if (w) { snapshot(); w.color = hlColor; commit(); }
-    refocus();
   });
 
   $('symbols').innerHTML = SYMBOLS.map(({ sym, say }) =>
@@ -1224,6 +1226,66 @@
     }
     if (isNote(Ln())) return focusNote(cur.line, true);
     typeChar(b.dataset.sym); refocus();
+  });
+
+  // ---------- Menus ----------
+  // File, Edit and View open like a Mac app's menus. Each item shows its shortcut on the right.
+  const menuTitles = [...document.querySelectorAll('.menu-title')];
+  const openMenu = () => menuTitles.find((t) => t.getAttribute('aria-expanded') === 'true');
+  function setMenu(title, open) {
+    title.setAttribute('aria-expanded', String(open));
+    $(title.getAttribute('aria-controls')).hidden = !open;
+  }
+  function closeMenus(returnFocus) {
+    const t = openMenu();
+    if (!t) return;
+    setMenu(t, false);
+    if (returnFocus) t.focus();
+  }
+  const menuItems = (menu) => [...menu.querySelectorAll('.menu-item, .zoom button')].map((el) => el.matches('label') ? el.control : el);
+
+  menuTitles.forEach((t) => {
+    t.addEventListener('click', () => {
+      const wasOpen = t.getAttribute('aria-expanded') === 'true';
+      closeMenus();
+      if (!wasOpen) setMenu(t, true);
+    });
+    // Like a Mac menu bar: once one menu is open, pointing at another title switches to it.
+    t.addEventListener('pointerenter', () => { if (openMenu() && openMenu() !== t) { closeMenus(); setMenu(t, true); } });
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      setMenu(t, true);
+      menuItems($(t.getAttribute('aria-controls')))[0].focus();
+    });
+  });
+  document.querySelectorAll('.menu').forEach((menu) => {
+    menu.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeMenus(true); return; }
+      if (e.key === 'Tab') return;
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const items = menuItems(menu);
+      const i = items.indexOf(document.activeElement);
+      items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+    });
+    // Choosing an item closes the menu. Zoom stays open so it can be pressed again,
+    // and New sheet stays open while it asks "Click again to clear".
+    menu.addEventListener('click', (e) => {
+      // (e.detail is 0 for a keyboard press; zoom hands focus to the sheet then, so close.)
+      if ((e.target.closest('.zoom') && e.detail) || e.target.matches('label') || !e.target.closest('button, input')) return;
+      if (e.target.closest('#newSheet') && newArmed) return;
+      closeMenus();
+    });
+  });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menubar')) closeMenus(); });
+  // Tabbing out of the menu bar closes it. (Not focusout: the ribbon buttons hand focus back to the sheet.)
+  document.querySelector('.menubar').addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') setTimeout(() => { if (!document.activeElement.closest('.menubar')) closeMenus(); });
+  });
+  document.querySelectorAll('.menu button[id]').forEach((b) => {
+    const info = BUTTONS[b.id];
+    if (info && info.keys) b.insertAdjacentHTML('beforeend', `<span class="menu-keys" aria-hidden="true">${esc(DYSC.keysText(info.keys))}</span>`);
   });
 
   // ---------- Info strip ----------
@@ -1245,11 +1307,6 @@
       const w = wrapsAtCursor().find((x) => x.id === +el.dataset.remove);
       const name = w ? KINDS[w.kind].name.toLowerCase() : 'wrap';
       return { name: `Remove ${name}`, means: `Takes the ${name} off these cells. What's inside stays.` };
-    }
-    const swatch = el.closest('.swatches') && (el.matches('input') ? el : $(el.htmlFor));
-    if (swatch) {
-      const name = HL_COLORS.find(([c]) => c === swatch.value)[1];
-      return { name: `${name} highlight`, means: 'Picks the colour the Highlight tool uses. If the cursor is in a highlight, it changes that one too.' };
     }
     const id = el.matches('label') && el.control ? el.control.id : el.id;
     return BUTTONS[id] || null;

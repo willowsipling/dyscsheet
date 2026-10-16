@@ -25,7 +25,7 @@ window.DYSC = (() => {
     hat:   { label: 'p̂',   name: 'Hat',             code: 'KeyT',   keys: ['alt', 'T'],
              means: 'Puts a hat over the cells. Usually means "an estimate of" or "predicted".' },
     hl:    { label: 'Highlight', name: 'Highlight', code: 'KeyH',   keys: ['alt', 'H'],
-             means: 'Colours behind the cells so you can mark them. It doesn\'t change the maths.' },
+             means: 'Colours the cells yellow so you can mark them. It doesn\'t change the maths.' },
   };
 
   const SYMBOLS = [
