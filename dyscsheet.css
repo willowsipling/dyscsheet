@@ -274,7 +274,6 @@ body {
   gap: 4px 6px;
 }
 .topbar .pad button {
-  justify-content: flex-start;
   padding-inline: 0.5rem;
 }
 .pad-ta {

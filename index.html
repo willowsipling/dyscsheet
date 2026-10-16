@@ -92,9 +92,9 @@
               </button>
               <button id="addLineAbove" class="pad-na"><span aria-hidden="true">⬆️🧮</span> Add Number Row Above</button>
               <button id="colLeft" class="pad-l"><span aria-hidden="true">⬅️</span> Add Column Left</button>
-              <button id="colRight" class="pad-r"><span aria-hidden="true">➡️</span> Add Column Right</button>
-              <button id="addLineBelow" class="pad-nb"><span aria-hidden="true">⬇️🧮</span> Add Number Row Below</button>
-              <button id="addNoteBelow" class="pad-tb"><span aria-hidden="true">⬇️💬</span> Add Text Row Below</button>
+              <button id="colRight" class="pad-r">Add Column Right<span aria-hidden="true">➡️</span></button>
+              <button id="addLineBelow" class="pad-nb">Add Number Row Below<span aria-hidden="true">⬇️🧮</span></button>
+              <button id="addNoteBelow" class="pad-tb">Add Text Row Below<span aria-hidden="true">⬇️💬</span></button>
             </div>
           </div>
           <span class="group-label">Sheet</span>
@@ -1325,7 +1325,7 @@
       return;
     }
     const info = explainInfo(hovered) || explainInfo(focused) || cursorInfo()
-      || { means: 'Point at a button, or tab to it, to see what it does.', hideKeys: true };
+      || { means: 'This info box that will populate contextual information when buttons are hovered-over or if actions are taken!', hideKeys: true };
     explainEl.innerHTML =
       (info.where ? `<span class="explain-where">${esc(info.where)}</span>` : '')
       + (info.glyph ? `<span class="explain-glyph">${show(info.glyph)}</span>` : '')
