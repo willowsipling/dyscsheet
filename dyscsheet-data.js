@@ -106,5 +106,17 @@ window.DYSC = (() => {
 
   const symbol = (ch) => SYMBOLS.find((s) => s.sym === ch);
 
-  return { KINDS, SYMBOLS, BUTTONS, MORE_KEYS, SHOW, esc, show, keysText, symbol, NO_SHORTCUT };
+  // Private preview: features that aren't public yet (the info strip and docs.html).
+  // Visit any page with ?preview=1 to turn them on in this browser, ?preview=0 to turn them off.
+  // This only hides them from the page; the code and text are still public in the source.
+  const PREVIEW = (() => {
+    try {
+      const q = new URLSearchParams(location.search).get('preview');
+      if (q !== null) localStorage.setItem('dyscsheet.preview', q === '1' ? '1' : '');
+      return localStorage.getItem('dyscsheet.preview') === '1';
+    } catch (_) { return false; }
+  })();
+  if (PREVIEW) document.documentElement.classList.add('preview');
+
+  return { KINDS, SYMBOLS, BUTTONS, MORE_KEYS, SHOW, esc, show, keysText, symbol, NO_SHORTCUT, PREVIEW };
 })();

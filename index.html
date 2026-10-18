@@ -1320,10 +1320,13 @@
   function explain() {
     // A status message (like "Tidied the fraction.") comes first, until the next click,
     // key press, or pointing at a different button.
+    explainEl.classList.toggle('has-status', !!statusEl.textContent);
     if (statusEl.textContent) {
       explainEl.innerHTML = `<span class="explain-status${statusEl.classList.contains('is-error') ? ' is-error' : ''}">${esc(statusEl.textContent)}</span>`;
       return;
     }
+    // Until the private preview goes public (see dyscsheet-data.js), the strip only shows status messages.
+    if (!DYSC.PREVIEW) { explainEl.textContent = ''; return; }
     const info = explainInfo(hovered) || explainInfo(focused) || cursorInfo()
       || { means: 'This info box that will populate contextual information when buttons are hovered-over or if actions are taken!', hideKeys: true };
     explainEl.innerHTML =
@@ -1348,11 +1351,11 @@
   topbar.addEventListener('focusin', (e) => { focused = control(e); explain(); });
   topbar.addEventListener('focusout', () => { focused = null; explain(); });
 
-  // Screen readers get the same words as the strip, read after each control's name.
+  // Screen readers get the same words as the strip, read after each control's name (private preview for now).
   const descs = document.createElement('div');
   descs.hidden = true;
   document.body.append(descs);
-  topbar.querySelectorAll('button, input').forEach((el, i) => {
+  if (DYSC.PREVIEW) topbar.querySelectorAll('button, input').forEach((el, i) => {
     const info = explainInfo(el);
     if (!info) return;
     descs.insertAdjacentHTML('beforeend', `<span id="desc-${i}">${esc(info.means)} ${info.keys ? 'Shortcut: ' + esc(DYSC.keysText(info.keys)) : 'No shortcut'}.</span>`);

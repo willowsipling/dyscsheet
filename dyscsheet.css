@@ -365,6 +365,25 @@ body {
   white-space: normal;
   text-align: left;
 }
+/* Private preview (see dyscsheet-data.js): without it, the strip is hidden and only appears to show a
+   status message, floating just under the toolbar so the sheet doesn't move. */
+html:not(.preview) .explain, html:not(.preview) .docs-content, html.preview .coming-soon {
+  display: none;
+}
+html:not(.preview) .explain.has-status {
+  display: flex;
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 16px;
+  z-index: 5;
+  max-width: min(40rem, calc(100% - 32px));
+  min-height: 0;
+  margin: 0;
+  box-shadow: 0 6px 20px rgb(57 10 35 / 0.18);
+}
+.topbar {
+  position: relative;
+}
 .explain-status.is-error {
   font-weight: 500;
   color: var(--caution);
@@ -422,6 +441,17 @@ body.page h1, body.page h2 {
 }
 body.page a {
   color: var(--pink-700);
+}
+/* A caution box, like Bootstrap's warning alert, in the orange caution colours (6:1 contrast). */
+.warning {
+  padding: 0.75rem 1rem;
+  color: var(--caution);
+  background: var(--caution-bg);
+  border: 1px solid var(--caution-border);
+  border-radius: 0.5rem;
+}
+body.page .warning a {
+  color: var(--caution);
 }
 body.page dt {
   font-weight: 700;
@@ -789,7 +819,7 @@ textarea.note {
     display: none;
   }
   /* "Print just the reference card" on docs.html. */
-  body.print-card > :not(#refcard) {
+  body.print-card > :not(.docs-content), body.print-card .docs-content > :not(#refcard) {
     display: none !important;
   }
   table.ref tr {
