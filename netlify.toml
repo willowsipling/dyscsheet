@@ -1,0 +1,12 @@
+# Repo files that aren't part of the site: answer "not found" instead of serving them.
+[[redirects]]
+  from = "/.gitignore"
+  to = "/404"
+  status = 404
+  force = true
+
+[[redirects]]
+  from = "/netlify.toml"
+  to = "/404"
+  status = 404
+  force = true
