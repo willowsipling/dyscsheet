@@ -54,7 +54,7 @@
     <dt>View menu</dt>
     <dd>Show the finished LaTeX/MathJax version of your work, and zoom the grid.</dd>
     <dt>Wrap</dt>
-    <dd>Roots, fractions, parentheses, exponents, subscripts, bars, hats and highlights. See <a href="#wrap">Using the wrap tools</a>.</dd>
+    <dd>Roots, fractions, exponents, subscripts, bars, hats and highlights. See <a href="#wrap">Using the wrap tools</a>.</dd>
     <dt>Symbols</dt>
     <dd>Greek letters and maths signs. Click one to type it at the cursor. The <a href="#refcard">reference card</a> lists what each one means.</dd>
     <dt>Sheet</dt>
@@ -121,7 +121,7 @@
     row([`<span class="ref-glyph">${show(s.sym)}</span>`, esc(s.say), esc(s.means), esc(keysText(s.keys))])).join('');
 
   // Tidy fraction sits right after Fraction, as it does in the toolbar.
-  $('toolBody').innerHTML = Object.values(KINDS).flatMap((k) => {
+  $('toolBody').innerHTML = Object.values(KINDS).filter((k) => !k.retired).flatMap((k) => {
     const out = [row([`<span class="ref-glyph">${esc(k.label === 'Highlight' ? '' : k.label)}</span>`, esc(k.name), esc(k.means), esc(keysText(k.keys))])];
     if (k === KINDS.frac) out.push(row(['', esc(BUTTONS.tidyFrac.name), esc(BUTTONS.tidyFrac.means), esc(keysText(BUTTONS.tidyFrac.keys))]));
     return out;
@@ -129,7 +129,7 @@
 
   const shortcuts = [
     ...Object.values(BUTTONS).filter((b) => b.keys).map((b) => [b.keys, `${b.name}: ${b.means}`]),
-    ...Object.values(KINDS).map((k) => [k.keys, `${k.name}: ${k.means}`]),
+    ...Object.values(KINDS).filter((k) => !k.retired).map((k) => [k.keys, `${k.name}: ${k.means}`]),
     ...MORE_KEYS.map((m) => [m.keys, m.means]),
   ];
   $('keysBody').innerHTML = shortcuts.map(([keys, what]) => row([kbd(keys), esc(what)])).join('');

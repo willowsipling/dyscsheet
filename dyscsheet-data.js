@@ -9,12 +9,13 @@ window.DYSC = (() => {
   'use strict';
 
   // Wrap tools. code is the physical key (e.code) the Option/Alt shortcut listens for.
+  // retired: no button, shortcut or reference-card entry, but older saved sheets that use it still open.
   const KINDS = {
     sqrt:  { label: '√',   name: 'Square root',     code: 'KeyR',   keys: ['alt', 'R'],
              means: 'Which number times itself gives this? Select cells, then press to put them under a root.' },
     frac:  { label: 'a/b', name: 'Fraction',        code: 'KeyF',   keys: ['alt', 'F'],
              means: 'The top divided by the bottom. Select cells, then press to put them over a fraction line.' },
-    paren: { label: '( )', name: 'Big parentheses', code: 'KeyP',   keys: ['alt', 'P'],
+    paren: { label: '( )', name: 'Big parentheses', retired: true,
              means: 'Groups things together. Work out what\'s inside first.' },
     sup:   { label: 'x²',  name: 'Exponent',        code: 'Digit6', keys: ['alt', '6'],
              means: 'Multiply the number by itself this many times. Written small and raised.' },
@@ -45,6 +46,7 @@ window.DYSC = (() => {
     { sym: 'χ',  say: 'chi (rhymes with "sky")', means: 'Used in the chi-square (χ²) test, which compares the counts you got with the counts you expected.' },
     { sym: 'ŷ',  say: 'y-hat',     means: 'The predicted y: what the regression line says y should be.' },
     { sym: 'x̄',  say: 'x-bar',     means: 'The sample mean: the average of your sample (add the values, divide by how many).' },
+    { sym: 'ƒ',  say: 'f (function)', means: 'A function: a rule that turns one number into another. ƒ(x) means "the result of the rule when you put in x".' },
     { sym: '±',  say: 'plus or minus', means: 'Do both: add it and subtract it. Often used for a margin of error.' },
     { sym: '÷',  say: 'divided by', means: 'Division.' },
     { sym: '×',  say: 'times',     means: 'Multiplication.' },

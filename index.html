@@ -160,6 +160,7 @@
     'λ': '\\lambda',
     'π': '\\pi',
     'θ': '\\theta',
+    'ƒ': 'f',
     'x̄': '\\bar{x}',
     'p̂': '\\hat{p}',
     'ŷ': '\\hat{y}',
@@ -974,6 +975,7 @@
     const cell = e.target.closest('.cell');
     if (!cell) return;
     e.preventDefault();
+    window.getSelection().removeAllRanges();   // so an old highlight in the MathJax pane doesn't win the next copy
     sheetScroll.focus({ preventScroll: true });
     const li = +cell.dataset.line, r = +cell.dataset.row, col = +cell.dataset.col;
     if (e.shiftKey && li === cur.line && r === cur.row) sel = { line: li, row: r, a: sel && sel.line === li && sel.row === r ? sel.a : cur.col, b: col };
@@ -1109,8 +1111,13 @@
 
   // ---------- Clipboard events ----------
   const inField = (t) => t && t.closest && t.closest('input, textarea, select');
+  // Text highlighted outside the grid (like the MathJax code below it). Copying copies that, not the cells.
+  const pageText = () => {
+    const ps = window.getSelection();
+    return ps && !ps.isCollapsed && !sheetScroll.contains(ps.anchorNode) ? String(ps) : '';
+  };
   ['copy', 'cut'].forEach((type) => document.addEventListener(type, (e) => {
-    if (inField(e.target) || isNote(Ln()) || !clip) return;
+    if (inField(e.target) || pageText() || isNote(Ln()) || !clip) return;
     e.preventDefault();
     e.clipboardData.setData('text/plain', clip.text);
   }));
@@ -1131,6 +1138,7 @@
     if (mod && e.key.toLowerCase() === 'y') { e.preventDefault(); redo(); return; }
     if (mod && !isNote(Ln())) {
       const k = e.key.toLowerCase();
+      if ((k === 'c' || k === 'x') && pageText()) return;   // the browser copies the highlighted text
       if (k === 'c') { copySel(); return; }
       if (k === 'x') { cutSel(); return; }
       if (k === 'v') return;   // the browser's paste event (below) does the pasting
@@ -1140,7 +1148,7 @@
     if (isNote(Ln())) { focusNote(cur.line, true); return; }
     if (e.altKey && e.code === 'KeyN') { e.preventDefault(); newNote(e.shiftKey); return; }
     if (e.altKey) {
-      const tool = Object.keys(KINDS).find((k) => KINDS[k].code === e.code);
+      const tool = Object.keys(KINDS).find((k) => !KINDS[k].retired && KINDS[k].code === e.code);
       if (tool) { e.preventDefault(); useTool(tool); return; }
       if (e.key === 'Backspace') { e.preventDefault(); removeColShift(); return; }
       return;
@@ -1200,8 +1208,8 @@
   const refocus = () => sheetScroll.focus({ preventScroll: true });
 
   // The panel fills top to bottom, three to a column: the wide buttons share the first column,
-  // then the small ones pair up across the rows (√ ( ), x² x₂, x̄ p̂).
-  const TOOL_ORDER = ['frac', 'tidy', 'hl', 'sqrt', 'sup', 'bar', 'paren', 'sub', 'hat'];
+  // then the small ones pair up across the rows (x² x₂, x̄ p̂, √).
+  const TOOL_ORDER = ['frac', 'tidy', 'hl', 'sup', 'bar', 'sqrt', 'sub', 'hat'];
   $('tools').innerHTML = TOOL_ORDER.map((k) => k === 'tidy'
     ? '<button id="tidyFrac">Tidy a/b</button>'
     : `<button class="tool" data-kind="${k}" aria-pressed="false" aria-label="${esc(KINDS[k].name)}">${esc(KINDS[k].label)}</button>`
@@ -1367,7 +1375,11 @@
   $('addLineAbove').addEventListener('click', () => { newLine(true); refocus(); });
   $('addLineBelow').addEventListener('click', () => { newLine(false); refocus(); });
   const toSystemClipboard = () => { if (clip && navigator.clipboard) navigator.clipboard.writeText(clip.text).catch(() => {}); };
-  $('copyBtn').addEventListener('click', () => { copySel(); toSystemClipboard(); refocus(); });
+  $('copyBtn').addEventListener('click', () => {
+    const t = pageText();
+    if (t) { if (navigator.clipboard) navigator.clipboard.writeText(t).catch(() => {}); return; }
+    copySel(); toSystemClipboard(); refocus();
+  });
   $('cutBtn').addEventListener('click', () => { cutSel(); toSystemClipboard(); refocus(); });
   $('colLeft').addEventListener('click', () => { addColumn('left'); refocus(); });
   $('colRight').addEventListener('click', () => { addColumn('right'); refocus(); });
