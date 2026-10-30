@@ -786,6 +786,173 @@ textarea.note {
   color: var(--caution);
 }
 
+/* crosstabs.html: a crosstab to fill in. Same toolbar; the page under it scrolls. */
+
+.view-name {
+  font-size: 0.55em;
+  font-weight: 500;
+  color: var(--pink-700);
+}
+.group-body.rows-2 {
+  grid-template-rows: repeat(2, auto);
+  column-gap: 16px;
+}
+.ct .topbar button[aria-pressed="true"] {
+  color: #fff;
+  background: var(--pink-600);
+  border-color: var(--pink-700);
+}
+.stepper {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 2.25rem;
+}
+.topbar .stepper button {
+  width: 2.25rem;
+  padding: 0;
+}
+.count {
+  min-width: 1.5em;
+  text-align: center;
+  font-weight: 700;
+}
+.ct-status {
+  margin-block: 6px 4px;
+  padding: 6px 12px;
+  background: var(--pink-50);
+  border: 1px solid var(--pink-400);
+  border-radius: 0.5rem;
+}
+.ct-status.is-error {
+  font-weight: 500;
+  color: var(--caution);
+}
+.ct-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  color: var(--pink-900);
+}
+.ct-main {
+  padding-block: 16px 48px;
+}
+
+/* Boxes to type in: big, centred, with numbers that line up like on graph paper. */
+.box {
+  box-sizing: border-box;
+  width: 5.5em;
+  min-height: 2.25rem;
+  padding: 4px 6px;
+  font: inherit;
+  font-size: 1.0625rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  color: var(--pink-900);
+  background: #fff;
+  border: 1px solid var(--pink-500);
+  border-radius: 0.375rem;
+}
+.box:focus {
+  outline: 3px solid var(--pink-900);
+  outline-offset: 1px;
+}
+.box.name {
+  width: 8em;
+  text-align: left;
+}
+
+/* A label and its box on one line: "fo [ 283 ]". */
+.slot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 6px;
+}
+.slot-name {
+  min-width: 4.2em;
+  font-weight: 500;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.xtab-scroll {
+  overflow-x: auto;
+}
+table.x {
+  border-collapse: collapse;
+  background: #fff;
+}
+.x th, .x td {
+  padding: 6px 8px;
+  vertical-align: middle;
+  border: 1px solid var(--pink-400);
+}
+.x th {
+  font-weight: 500;
+  text-align: center;
+}
+.x .corner {
+  font-size: 0.8125rem;
+  color: var(--pink-700);
+}
+.x .total {
+  background: var(--pink-100);
+}
+.x .total.grand {
+  border: 2px solid var(--pink-600);
+}
+/* Stacked cells: the slots in bands, like rows of a spreadsheet. */
+.x .a-cell {
+  padding: 0;
+}
+.a-cell .slot:nth-child(even) {
+  background: var(--pink-50);
+}
+.a-cell .slot + .slot {
+  border-top: 1px solid var(--pink-200);
+}
+/* Matched tables sit side by side. */
+.c-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
+}
+.c-wrap h2 {
+  margin: 0 0 6px;
+  font-size: 1.0625rem;
+  color: var(--pink-600);
+}
+.c-wrap .x td .box {
+  width: 5em;
+}
+.below {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  margin-top: 14px;
+}
+.below .slot {
+  padding: 0;
+}
+/* Crosshair around the box you're in; in matched tables, the same cell in every table. */
+.x .is-row, .x .is-col {
+  background: #fff3b0;
+}
+.x .is-row .slot, .x .is-col .slot {
+  background: transparent;
+}
+.x .is-same {
+  background: #ffe36e;
+  box-shadow: inset 0 0 0 3px var(--pink-700);
+}
+@media (prefers-contrast: more) {
+  .box, .x th, .x td {
+    border-color: var(--pink-800);
+  }
+}
+
 @media print {
   html, body {
     height: auto;
@@ -823,6 +990,12 @@ textarea.note {
     display: none !important;
   }
   table.ref tr {
+    break-inside: avoid;
+  }
+  .ct-scroll {
+    overflow: visible;
+  }
+  .ct-scroll .x, .c-wrap section {
     break-inside: avoid;
   }
 }

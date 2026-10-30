@@ -70,6 +70,7 @@ window.DYSC = (() => {
     cutBtn:       { name: 'Cut', means: 'Removes the selected cells and keeps a copy to paste.', keys: ['mod', 'X'] },
     copyBtn:      { name: 'Copy', means: 'Copies the selected cells so you can paste them somewhere else.', keys: ['mod', 'C'] },
     pasteBtn:     { name: 'Paste', means: 'Puts the cells you cut or copied at the cursor.', keys: ['mod', 'V'] },
+    copyLineDown: { name: 'Duplicate Line', means: 'Copies this line just below it, so you can change one thing and highlight it. Good for showing your work step by step.', keys: ['alt', 'D'] },
     zoomOut:      { name: 'Zoom out', means: 'Makes the grid smaller. Only the grid changes, nothing else.' },
     zoomReset:    { name: 'Zoom 100%', means: 'Puts the grid back to its normal size.' },
     zoomIn:       { name: 'Zoom in', means: 'Makes the grid bigger. Only the grid changes, nothing else.' },

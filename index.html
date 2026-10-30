@@ -52,6 +52,8 @@
               <button id="cutBtn" class="menu-item">Cut</button>
               <button id="copyBtn" class="menu-item">Copy</button>
               <button id="pasteBtn" class="menu-item">Paste</button>
+              <hr>
+              <button id="copyLineDown" class="menu-item">Duplicate Line</button>
             </div>
           </div>
           <div class="menu-wrap">
@@ -67,6 +69,7 @@
             </div>
           </div>
         </nav>
+        <a href="crosstabs.html">Crosstabs</a>
         <a href="docs.html">Documentation / How To</a>
         <a href="about.html">About</a>
       </div>
@@ -681,6 +684,20 @@
     commit();
   }
 
+  // Copies the line just below itself, cursor in the same place, for showing work one step at a time:
+  // change one thing on the copy and highlight it. The copy leaves highlights behind, since each step
+  // highlights only what just changed.
+  function copyLineDown() {
+    snapshot();
+    const copy = JSON.parse(JSON.stringify(Ln()));
+    if (!isNote(copy)) copy.wraps = copy.wraps.filter((w) => w.kind !== 'hl').map((w) => ({ ...w, id: doc.nextId++ }));
+    doc.lines.splice(cur.line + 1, 0, copy);
+    cur = { ...cur, line: cur.line + 1 };
+    sel = null; armed = null;
+    commit();
+    if (isNote(copy)) focusNote(cur.line, true);
+  }
+
   // ---------- Wrapping ----------
   function applyWrap(kind, li, r, s, e) {
     const line = doc.lines[li];
@@ -1147,6 +1164,7 @@
 
     if (isNote(Ln())) { focusNote(cur.line, true); return; }
     if (e.altKey && e.code === 'KeyN') { e.preventDefault(); newNote(e.shiftKey); return; }
+    if (e.altKey && e.code === 'KeyD') { e.preventDefault(); copyLineDown(); return; }
     if (e.altKey) {
       const tool = Object.keys(KINDS).find((k) => !KINDS[k].retired && KINDS[k].code === e.code);
       if (tool) { e.preventDefault(); useTool(tool); return; }
@@ -1390,6 +1408,7 @@
     refocus();
   });
   $('addNoteBelow').addEventListener('click', () => newNote(false));
+  $('copyLineDown').addEventListener('click', () => { copyLineDown(); if (!isNote(Ln())) refocus(); });
   $('addNoteAbove').addEventListener('click', () => newNote(true));
   $('save').addEventListener('click', () => {
     const blob = new Blob([JSON.stringify(doc, null, 2)], { type: 'application/json' });

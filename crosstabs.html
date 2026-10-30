@@ -1,0 +1,288 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dyscsheet crosstabs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="dyscsheet.css">
+<script src="dyscsheet-data.js"></script>
+</head>
+<body class="ct">
+  <div class="topbar">
+    <div class="wrap">
+      <div class="title-row">
+        <h1>dysc<span>sheet</span> <span class="view-name">crosstabs</span></h1>
+        <nav class="menubar" aria-label="Menus">
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="fileMenu">File</button>
+            <div class="menu" id="fileMenu" hidden>
+              <button id="newPage" class="menu-item danger">New crosstab</button>
+              <button id="open" class="menu-item">Open file</button>
+              <input type="file" id="fileInput" accept=".json,application/json" hidden>
+              <button id="save" class="menu-item">Save file</button>
+              <button id="print" class="menu-item">Print / PDF</button>
+            </div>
+          </div>
+        </nav>
+        <a href="./">Worksheet</a>
+        <a href="docs.html">Documentation / How To</a>
+        <a href="about.html">About</a>
+      </div>
+      <div class="ribbon">
+        <div class="group" role="group" aria-label="Layout">
+          <div class="group-body">
+            <button data-layout="a" aria-pressed="false">Stacked cells</button>
+            <button data-layout="c" aria-pressed="false">Matched tables</button>
+          </div>
+          <span class="group-label">Layout</span>
+        </div>
+        <div class="group" role="group" aria-label="Size">
+          <div class="group-body">
+            <span class="stepper">Rows
+              <button id="rowLess" aria-label="One less row">−</button>
+              <span id="rowCount" class="count"></span>
+              <button id="rowMore" aria-label="One more row">+</button>
+            </span>
+            <span class="stepper">Columns
+              <button id="colLess" aria-label="One less column">−</button>
+              <span id="colCount" class="count"></span>
+              <button id="colMore" aria-label="One more column">+</button>
+            </span>
+          </div>
+          <span class="group-label">Size</span>
+        </div>
+        <div class="group" role="group" aria-label="What to show">
+          <div class="group-body rows-2" id="slotBoxes"></div>
+          <span class="group-label" id="slotLabel"></span>
+        </div>
+      </div>
+      <div class="ct-status" id="status" role="status" aria-live="polite" hidden></div>
+    </div>
+  </div>
+
+  <div class="ct-scroll">
+    <main class="wrap ct-main" id="main"></main>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+  // A crosstab to fill in. Labels say what each number is (fo, %, fe, χ² part, the margins),
+  // never how to get it: nothing here is worked out or checked. The student picks which
+  // quantities to show, and whether they sit together in each cell or in matching tables.
+
+  const { esc } = DYSC;
+  const $ = (id) => document.getElementById(id);
+  const STORE = 'dyscsheet.crosstab.v3';
+  const TYPE = 'dyscsheet-crosstab';
+  const MIN = 2, MAX = 6;
+  const range = (n) => [...Array(n).keys()];
+
+  const SLOTS = ['fo', 'pct', 'fe', 'part'];
+  const SLOT_NAME = { fo: 'f<sub>o</sub>', pct: '%', fe: 'f<sub>e</sub>', part: 'χ² part' };
+  const SLOT_SAY = { fo: 'f o', pct: 'percent', fe: 'f e', part: 'chi-square part' };
+  const SLOT_TITLE = { fo: 'f<sub>o</sub>: observed', pct: '%', fe: 'f<sub>e</sub>: expected', part: 'χ² parts' };
+
+  // ct = { type, version, layout: 'a' (stacked cells) | 'c' (matched tables), rows, cols, on: { slot: shown? }, v: { key: typed text } }
+  // Every box's text lives in v under its key, so shrinking the table or hiding a slot loses nothing.
+  const blank = () => ({ type: TYPE, version: 3, layout: 'a', rows: 2, cols: 2, on: { fo: true, pct: true, fe: true, part: true }, v: {} });
+  let ct = blank();
+
+  const val = (k) => ct.v[k] || '';
+  const rowName = (i) => val(`rn-${i}`) || `row ${i + 1}`;
+  const colName = (j) => val(`cn-${j}`) || `column ${j + 1}`;
+  const shown = () => SLOTS.filter((s) => ct.on[s]);
+  const store = () => { try { localStorage.setItem(STORE, JSON.stringify(ct)); } catch (_) { /* Save file still works */ } };
+
+  // ---------- Building blocks ----------
+  const box = (k, label, cls = '') =>
+    `<input class="box ${cls}" data-k="${k}" value="${esc(val(k))}" aria-label="${esc(label)}" autocomplete="off" spellcheck="false">`;
+  // A label and its box on one line, like "fo [ 283 ]".
+  const slot = (name, k, label) => `<label class="slot"><span class="slot-name">${name}</span>${box(k, label)}</label>`;
+  const cellLabel = (s, i, j) => `${SLOT_SAY[s]}, ${rowName(i)}, ${colName(j)}`;
+
+  // The frame both layouts share: names across the top and down the side, margins on the right and bottom.
+  function frame(cell, withMargins) {
+    const head = `<tr><th class="corner">crosstabs</th>`
+      + range(ct.cols).map((j) => `<th data-j="${j}">${box(`cn-${j}`, `Column ${j + 1} name`, 'name')}</th>`).join('')
+      + (withMargins ? '<th class="total" data-j="m">Margin</th>' : '') + '</tr>';
+    const body = range(ct.rows).map((i) => `<tr><th data-i="${i}">${box(`rn-${i}`, `Row ${i + 1} name`, 'name')}</th>`
+      + range(ct.cols).map((j) => cell(i, j)).join('')
+      + (withMargins ? `<td class="total" data-i="${i}" data-j="m">${slot('row margin', `rm-${i}`, `Row margin, ${rowName(i)}`)}</td>` : '')
+      + '</tr>').join('');
+    const foot = withMargins ? `<tr><th class="total" data-i="m">Margin</th>`
+      + range(ct.cols).map((j) => `<td class="total" data-i="m" data-j="${j}">${slot('column margin', `cm-${j}`, `Column margin, ${colName(j)}`)}</td>`).join('')
+      + `<td class="total grand" data-i="m" data-j="m">${slot('n', 'n', 'n, the sample size')}</td></tr>` : '';
+    return `<div class="xtab-scroll"><table class="x">${head}${body}${foot}</table></div>`;
+  }
+
+  function render() {
+    const below = `<div class="below">${slot('∑ χ² =', 'chi', 'Chi-square')}${slot('df =', 'df', 'Degrees of freedom')}</div>`;
+    if (ct.layout === 'a') {
+      $('main').innerHTML = frame((i, j) => `<td class="a-cell" data-i="${i}" data-j="${j}">`
+        + shown().map((s) => slot(SLOT_NAME[s], `${s}-${i}-${j}`, cellLabel(s, i, j))).join('') + '</td>', true) + below;
+    } else {
+      // Margins sit on the fo table only; the others are the same shape so cells line up across them.
+      $('main').innerHTML = '<div class="c-wrap">' + shown().map((s) => `<section><h2>${SLOT_TITLE[s]}</h2>`
+        + frame((i, j) => `<td data-i="${i}" data-j="${j}">${box(`${s}-${i}-${j}`, cellLabel(s, i, j))}</td>`, s === 'fo')
+        + '</section>').join('') + '</div>' + below;
+    }
+
+    document.querySelectorAll('[data-layout]').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.layout === ct.layout)));
+    $('rowCount').textContent = ct.rows;
+    $('colCount').textContent = ct.cols;
+    $('rowLess').disabled = ct.rows <= MIN; $('rowMore').disabled = ct.rows >= MAX;
+    $('colLess').disabled = ct.cols <= MIN; $('colMore').disabled = ct.cols >= MAX;
+    $('slotLabel').textContent = ct.layout === 'a' ? 'Show in each cell' : 'Tables to show';
+    $('slotBoxes').innerHTML = SLOTS.map((s) =>
+      `<label class="toggle"><input type="checkbox" value="${s}"${ct.on[s] ? ' checked' : ''}> <span>${SLOT_NAME[s]}</span></label>`).join('');
+  }
+
+  // ---------- Typing ----------
+  $('main').addEventListener('input', (e) => {
+    const k = e.target.dataset.k;
+    if (!k) return;
+    ct.v[k] = e.target.value;
+    // A name appears in every table; keep each copy the same.
+    document.querySelectorAll(`[data-k="${k}"]`).forEach((el) => { if (el !== e.target) el.value = e.target.value; });
+    store();
+  });
+
+  // Crosshair: the row and column around the box you're in. In matched tables, the same cell lights up in every table.
+  const clearCross = () => document.querySelectorAll('.is-row, .is-col, .is-same').forEach((el) => el.classList.remove('is-row', 'is-col', 'is-same'));
+  $('main').addEventListener('focusin', (e) => {
+    clearCross();
+    const td = e.target.closest('td, th');
+    const table = e.target.closest('table');
+    if (!td || !table) return;
+    const { i, j } = td.dataset;
+    table.querySelectorAll('td, th').forEach((c) => {
+      if (i !== undefined && c.dataset.i === i) c.classList.add('is-row');
+      if (j !== undefined && c.dataset.j === j) c.classList.add('is-col');
+    });
+    if (ct.layout === 'c' && i !== undefined && j !== undefined) {
+      document.querySelectorAll(`td[data-i="${i}"][data-j="${j}"]`).forEach((c) => c.classList.add('is-same'));
+    }
+  });
+  $('main').addEventListener('focusout', clearCross);
+
+  // ---------- Toolbar ----------
+  const change = (fn) => () => { fn(); store(); render(); };
+  document.querySelectorAll('[data-layout]').forEach((b) => b.addEventListener('click', change(() => { ct.layout = b.dataset.layout; })));
+  $('rowLess').addEventListener('click', change(() => { ct.rows = Math.max(MIN, ct.rows - 1); }));
+  $('rowMore').addEventListener('click', change(() => { ct.rows = Math.min(MAX, ct.rows + 1); }));
+  $('colLess').addEventListener('click', change(() => { ct.cols = Math.max(MIN, ct.cols - 1); }));
+  $('colMore').addEventListener('click', change(() => { ct.cols = Math.min(MAX, ct.cols + 1); }));
+  $('slotBoxes').addEventListener('change', (e) => { ct.on[e.target.value] = e.target.checked; store(); render(); });
+
+  // ---------- Status ----------
+  const statusEl = $('status');
+  function setStatus(msg, kind) {
+    statusEl.textContent = msg;
+    statusEl.hidden = !msg;
+    statusEl.classList.toggle('is-error', kind === 'error');
+  }
+  ['keydown', 'pointerdown'].forEach((type) => document.addEventListener(type, () => { if (statusEl.textContent) setStatus(''); }, true));
+
+  // ---------- File menu ----------
+  // Same behaviour as the worksheet's menus.
+  const menuTitles = [...document.querySelectorAll('.menu-title')];
+  const openMenu = () => menuTitles.find((t) => t.getAttribute('aria-expanded') === 'true');
+  function setMenu(title, open) {
+    title.setAttribute('aria-expanded', String(open));
+    $(title.getAttribute('aria-controls')).hidden = !open;
+  }
+  function closeMenus(returnFocus) {
+    const t = openMenu();
+    if (!t) return;
+    setMenu(t, false);
+    if (returnFocus) t.focus();
+  }
+  const menuItems = (menu) => [...menu.querySelectorAll('.menu-item')];
+  menuTitles.forEach((t) => {
+    t.addEventListener('click', () => {
+      const wasOpen = t.getAttribute('aria-expanded') === 'true';
+      closeMenus();
+      if (!wasOpen) setMenu(t, true);
+    });
+    t.addEventListener('keydown', (e) => {
+      if (e.key !== 'ArrowDown') return;
+      e.preventDefault();
+      setMenu(t, true);
+      menuItems($(t.getAttribute('aria-controls')))[0].focus();
+    });
+  });
+  document.querySelectorAll('.menu').forEach((menu) => {
+    menu.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); closeMenus(true); return; }
+      if (e.key !== 'ArrowDown' && e.key !== 'ArrowUp') return;
+      e.preventDefault();
+      const items = menuItems(menu);
+      const i = items.indexOf(document.activeElement);
+      items[(i + (e.key === 'ArrowDown' ? 1 : items.length - 1)) % items.length].focus();
+    });
+    menu.addEventListener('click', (e) => {
+      if (!e.target.closest('button')) return;
+      if (e.target.closest('#newPage') && newArmed) return;
+      closeMenus();
+    });
+  });
+  document.addEventListener('pointerdown', (e) => { if (!e.target.closest('.menubar')) closeMenus(); });
+  document.querySelector('.menubar').addEventListener('keydown', (e) => {
+    if (e.key === 'Tab') setTimeout(() => { if (!document.activeElement.closest('.menubar')) closeMenus(); });
+  });
+
+  const load = (data) => ({ ...blank(), ...data, on: { ...blank().on, ...data.on }, v: { ...data.v } });
+  const valid = (data) => data && data.type === TYPE && data.v && typeof data.v === 'object';
+  $('save').addEventListener('click', () => {
+    const blob = new Blob([JSON.stringify(ct, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'dyscsheet-crosstab.json';
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  });
+  $('open').addEventListener('click', () => $('fileInput').click());
+  $('fileInput').addEventListener('change', async (e) => {
+    const f = e.target.files[0];
+    if (!f) return;
+    try {
+      const data = JSON.parse(await f.text());
+      if (!valid(data)) throw new Error('not a crosstab');
+      ct = load(data);
+      store(); render();
+    } catch (_) {
+      setStatus(`${f.name} isn't a dyscsheet crosstab. Choose a .json file saved from this page. (Worksheet files open on the Worksheet page.)`, 'error');
+    }
+    e.target.value = '';
+  });
+  $('print').addEventListener('click', () => window.print());
+
+  let newArmed = 0;
+  $('newPage').addEventListener('click', () => {
+    if (Date.now() - newArmed > 4000) {
+      newArmed = Date.now();
+      $('newPage').textContent = 'Click again to clear';
+      setStatus('Click again to clear the whole crosstab.', 'error');
+      setTimeout(() => { $('newPage').textContent = 'New crosstab'; }, 4000);
+      return;
+    }
+    newArmed = 0;
+    $('newPage').textContent = 'New crosstab';
+    ct = blank();
+    store(); render();
+  });
+
+  // ---------- Start ----------
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || 'null');
+    if (valid(saved)) ct = load(saved);
+  } catch (_) { /* start blank */ }
+  render();
+})();
+</script>
+</body>
+</html>
