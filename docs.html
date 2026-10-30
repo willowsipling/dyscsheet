@@ -11,7 +11,7 @@
 <script src="dyscsheet-data.js"></script>
 </head>
 <body class="page">
-  <p class="page-nav"><a href="./">← Back to dyscsheet</a> · <a href="crosstabs.html">Crosstabs</a> · <a href="about.html">About</a></p>
+  <p class="page-nav"><a href="./">← Back to dyscsheet</a> · <a href="crosstabs.html">Crosstabs</a> · <a href="gamma.html">Gamma</a> · <a href="about.html">About</a></p>
 
   <!-- Private preview (see dyscsheet-data.js): the public sees "Coming soon" until these docs go live. -->
   <div class="coming-soon">
@@ -32,6 +32,7 @@
       <li><a href="#steps">Showing your work step by step</a></li>
       <li><a href="#output">LaTeX/MathJax output and Obsidian</a></li>
       <li><a href="#crosstabs">Crosstabs</a></li>
+      <li><a href="#gamma">Gamma</a></li>
       <li><a href="#keys">Keyboard shortcuts</a></li>
       <li><a href="#refcard">Reference card</a></li>
     </ul>
@@ -47,7 +48,7 @@
 
   <h2 id="toolbar">The toolbar</h2>
   <p>Point at any button, or tab to it with the keyboard, and the strip under the toolbar says what it does and its shortcut. When the cursor is on a symbol in your work, the strip says what that symbol means.</p>
-  <p>File, Edit and View are menus at the top, next to the name, like in a Mac app. Click one (or tab to it and press the down arrow) to open it. Each item shows its shortcut on the right.</p>
+  <p>File, Edit, View and Sheets are menus at the top, next to the name, like in a Mac app. Click one (or tab to it and press the down arrow) to open it. Each item shows its shortcut on the right.</p>
   <dl>
     <dt>File menu</dt>
     <dd>Start a new sheet, open or save a file, and print.</dd>
@@ -55,12 +56,14 @@
     <dd>Undo, redo, cut, copy and paste, and Duplicate Line. See <a href="#steps">Showing your work step by step</a>.</dd>
     <dt>View menu</dt>
     <dd>Show the finished LaTeX/MathJax version of your work, and zoom the grid.</dd>
+    <dt>Sheets menu</dt>
+    <dd>Switch between the Worksheet, <a href="#crosstabs">Crosstabs</a> and <a href="#gamma">Gamma</a>. Each keeps its own work.</dd>
     <dt>Wrap</dt>
     <dd>Roots, fractions, exponents, subscripts, bars, hats and highlights. See <a href="#wrap">Using the wrap tools</a>.</dd>
     <dt>Symbols</dt>
     <dd>Greek letters and maths signs. Click one to type it at the cursor. The <a href="#refcard">reference card</a> lists what each one means.</dd>
     <dt>Sheet</dt>
-    <dd>Add rows above and below the cursor's line, and columns to its left and right.</dd>
+    <dd>Add rows above and below the cursor's line, and columns to its left and right. Under the last line there are three more buttons that add to the end of the sheet: 🧮 a number row, 💬 a text row, and ⧉ a copy of the last line.</dd>
   </dl>
 
   <h2 id="wrap">Using the wrap tools</h2>
@@ -100,8 +103,26 @@
     <li><strong>Stacked cells</strong> keeps every number about a cell together in that cell. <strong>Matched tables</strong> gives each quantity its own table, all the same shape.</li>
     <li>Tick which quantities to show. You can start with just f<sub>o</sub> and add more as you go. Hiding one doesn't delete what you typed.</li>
     <li>Set the number of rows and columns (2 to 6) in the toolbar. Name them in the table; names update everywhere.</li>
-    <li>The row and column around the box you're in light up. In matched tables, the same cell lights up in every table.</li>
+    <li><strong>Crosshair</strong> (under Modes in the toolbar, off to start with; your browser remembers whether you last left it on or off) turns on all these highlights. Turn it off to practise without them.
+      <ul>
+        <li>The row and column around the box you're in light up, and the box itself turns pink. In matched tables, the same cell lights up in every table.</li>
+        <li>A plum border goes round the boxes that number is made from. Row margin: the f<sub>o</sub>s in that row. Column margin: the f<sub>o</sub>s in that column. n: every margin. %: that cell's f<sub>o</sub> and its column margin. f<sub>e</sub>: that cell's row margin, column margin and n. χ² part: that cell's f<sub>o</sub> and f<sub>e</sub>. ∑ χ²: every χ² part. df: the row and column names. Critical value: df.</li>
+      </ul>
+    </li>
+    <li>The Edit and View menus work like the worksheet's. Undo and Redo cover the whole crosstab, including toolbar changes like size and layout. Cut, Copy and Paste work on the box you're in (on what you've selected, or the whole box). Zoom makes the table bigger or smaller.</li>
     <li>Crosstabs save in their own file, separate from your worksheet.</li>
+  </ul>
+
+  <h2 id="gamma">Gamma</h2>
+  <p>The <a href="gamma.html">Gamma</a> page is a table to fill in for working out gamma (γ) by hand. Each box is labelled with what goes in it (f<sub>o</sub>, C sum for the concordant cells, CP part, D sum for the discordant cells, DP part, and below it CP, DP, CP − DP, CP + DP and γ). CP and DP are the concordant and discordant pairs. Nothing is worked out for you.</p>
+  <ul>
+    <li>It has the same layouts, sizes, and Edit and View menus as Crosstabs.</li>
+    <li><strong>Crosshair</strong> (under Modes in the toolbar, off to start with; your browser remembers whether you last left it on or off) turns on all the highlights below: the row and column around the box you're in, the box itself in pink, the shaded group and the plum borders. Turn it off to practise without them.</li>
+    <li>Click into a concordant or discordant box and that cell's group is shaded blue: the cells below and to the right for concordant, above and to the right for discordant.</li>
+    <li>In a C or D sum box, the f<sub>o</sub> boxes in that group also get a plum border. In a CP or DP part box, the plum border goes round that cell's own f<sub>o</sub> and its sum. Below the table, CP borders every CP part, DP every DP part, CP − DP and CP + DP border CP and DP, and γ borders CP − DP and CP + DP.</li>
+    <li>A cell with no group (for example, nothing to its right) has no box for it.</li>
+    <li>Tab moves through the boxes in the order of the method: every f<sub>o</sub>, then concordant starting at the top-left cell (across each row, then down), then discordant starting at the bottom-left cell (across each row, then up), then CP, DP and γ. Shift+Tab goes back. You can still click any box.</li>
+    <li>Gamma sheets save in their own file, separate from crosstabs and your worksheet.</li>
   </ul>
 
   <h2 id="keys">Keyboard shortcuts</h2>

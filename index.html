@@ -68,8 +68,15 @@
               </span>
             </div>
           </div>
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="sheetsMenu">Sheets</button>
+            <div class="menu" id="sheetsMenu" hidden>
+              <a class="menu-item" href="./" aria-current="page">Worksheet</a>
+              <a class="menu-item" href="crosstabs.html">Crosstabs</a>
+              <a class="menu-item" href="gamma.html">Gamma</a>
+            </div>
+          </div>
         </nav>
-        <a href="crosstabs.html">Crosstabs</a>
         <a href="docs.html">Documentation / How To</a>
         <a href="about.html">About</a>
       </div>
@@ -159,6 +166,8 @@
     'α': '\\alpha',
     'β': '\\beta',
     'χ': '\\chi',
+    'φ': '\\phi',
+    'γ': '\\gamma',
     'ρ': '\\rho',
     'λ': '\\lambda',
     'π': '\\pi',
@@ -912,6 +921,20 @@
     </section>`;
   }
 
+  // Under the last line: add a number row, a text row, or a copy of the last line, at the end of the sheet.
+  // A hidden copy of the line head lines the buttons up with the grid.
+  function endHTML() {
+    const last = doc.lines.length - 1;
+    return `<div class="line sheet-end">
+      <div class="end-pad" aria-hidden="true">${headHTML(last)}</div>
+      <div class="end-tools">
+        <button data-end="number" title="Add a number row at the end" aria-label="Add a number row at the end">🧮</button>
+        <button data-end="text" title="Add a text row at the end" aria-label="Add a text row at the end">💬</button>
+        <button data-end="copy" title="Duplicate the last line" aria-label="Duplicate the last line">⧉</button>
+      </div>
+    </div>`;
+  }
+
   function render() {
     if (cur.line >= doc.lines.length) cur.line = doc.lines.length - 1;
     const maths = doc.lines.filter((l) => !isNote(l));
@@ -921,7 +944,7 @@
     cur.row = isNote(Ln()) ? 0 : Math.min(cur.row, Ln().rows.length - 1);
 
     sheet.style.setProperty('--n', n);
-    sheet.innerHTML = doc.lines.map((line, li) => lineHTML(line, li, n)).join('');
+    sheet.innerHTML = doc.lines.map((line, li) => lineHTML(line, li, n)).join('') + endHTML();
     sheet.querySelectorAll('textarea.note').forEach(autosize);
     compiledBody.innerHTML = doc.lines.map((line, li) => isNote(line)
       ? `<div class="cline" data-cline="${li}"><span class="cln">${li + 1}</span>
@@ -988,7 +1011,7 @@
   // ---------- Pointer input ----------
   sheet.addEventListener('pointerdown', (e) => {
     if (e.button !== 0) return;
-    if (e.target.closest('.line-tools')) { e.preventDefault(); return; }   // keep focus on the line
+    if (e.target.closest('.line-tools, .sheet-end')) { e.preventDefault(); return; }   // keep focus on the line
     const cell = e.target.closest('.cell');
     if (!cell) return;
     e.preventDefault();
@@ -1080,6 +1103,14 @@
     commit();
     if (isNote(doc.lines[to])) focusNote(to, true);
   }
+  sheet.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-end]');
+    if (!b) return;
+    cur = { line: doc.lines.length - 1, row: 0, col: 0 };
+    if (b.dataset.end === 'number') { newLine(false); refocus(); }
+    if (b.dataset.end === 'text') newNote(false);
+    if (b.dataset.end === 'copy') { copyLineDown(); if (!isNote(Ln())) refocus(); }
+  });
   // Like New sheet: the first click on ✕ only asks.
   let delArmed = null;   // { li, t }
   sheet.addEventListener('click', (e) => {

@@ -1,0 +1,168 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>dyscsheet gamma</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;700&display=swap">
+<link rel="stylesheet" href="dyscsheet.css">
+<script src="dyscsheet-data.js"></script>
+<script src="dyscsheet-tables.js"></script>
+</head>
+<body class="ct">
+  <div class="topbar">
+    <div class="wrap">
+      <div class="title-row">
+        <h1>dysc<span>sheet</span> <span class="view-name">gamma</span></h1>
+        <nav class="menubar" aria-label="Menus">
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="fileMenu">File</button>
+            <div class="menu" id="fileMenu" hidden>
+              <button id="newPage" class="menu-item danger">New gamma sheet</button>
+              <button id="open" class="menu-item">Open file</button>
+              <input type="file" id="fileInput" accept=".json,application/json" hidden>
+              <button id="save" class="menu-item">Save file</button>
+              <button id="print" class="menu-item">Print / PDF</button>
+            </div>
+          </div>
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="editMenu">Edit</button>
+            <div class="menu" id="editMenu" hidden>
+              <button id="undo" class="menu-item">Undo</button>
+              <button id="redo" class="menu-item">Redo</button>
+              <hr>
+              <button id="cutBtn" class="menu-item">Cut</button>
+              <button id="copyBtn" class="menu-item">Copy</button>
+              <button id="pasteBtn" class="menu-item">Paste</button>
+            </div>
+          </div>
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="viewMenu">View</button>
+            <div class="menu" id="viewMenu" hidden>
+              <span class="zoom">Zoom
+                <button id="zoomOut" aria-label="Zoom out">−</button>
+                <button id="zoomReset">100%</button>
+                <button id="zoomIn" aria-label="Zoom in">+</button>
+              </span>
+            </div>
+          </div>
+          <div class="menu-wrap">
+            <button class="menu-title" aria-expanded="false" aria-controls="sheetsMenu">Sheets</button>
+            <div class="menu" id="sheetsMenu" hidden>
+              <a class="menu-item" href="./">Worksheet</a>
+              <a class="menu-item" href="crosstabs.html">Crosstabs</a>
+              <a class="menu-item" href="gamma.html" aria-current="page">Gamma</a>
+            </div>
+          </div>
+        </nav>
+        <a href="docs.html">Documentation / How To</a>
+        <a href="about.html">About</a>
+      </div>
+      <div class="ribbon">
+        <div class="group" role="group" aria-label="Layout">
+          <div class="group-body">
+            <button data-layout="a" aria-pressed="false">Stacked cells</button>
+            <button data-layout="c" aria-pressed="false">Matched tables</button>
+          </div>
+          <span class="group-label">Layout</span>
+        </div>
+        <div class="group" role="group" aria-label="Size">
+          <div class="group-body">
+            <span class="stepper">Rows
+              <button id="rowLess" aria-label="One less row">−</button>
+              <span id="rowCount" class="count"></span>
+              <button id="rowMore" aria-label="One more row">+</button>
+            </span>
+            <span class="stepper">Columns
+              <button id="colLess" aria-label="One less column">−</button>
+              <span id="colCount" class="count"></span>
+              <button id="colMore" aria-label="One more column">+</button>
+            </span>
+          </div>
+          <span class="group-label">Size</span>
+        </div>
+        <div class="group" role="group" aria-label="What to show">
+          <div class="group-body rows-2" id="slotBoxes"></div>
+          <span class="group-label" id="slotLabel"></span>
+        </div>
+        <div class="group" role="group" aria-label="Modes">
+          <div class="group-body">
+            <button id="crossMode" aria-pressed="false">Crosshair</button>
+          </div>
+          <span class="group-label">Modes</span>
+        </div>
+      </div>
+      <div class="ct-status" id="status" role="status" aria-live="polite" hidden></div>
+    </div>
+  </div>
+
+  <div class="ct-scroll">
+    <main class="wrap ct-main" id="main"></main>
+  </div>
+
+<script>
+// Gamma by hand: each cell is "home" in turn. As taught in class, its concordant cells sit below
+// and to the right, and its discordant cells above and to the right. CP and DP are the concordant
+// and discordant pairs. Nothing is added or multiplied here; clicking a C or D box shades that
+// cell's group, the way the crosshair shows its row and column. (See dyscsheet-tables.js.)
+const hasC = (i, j, rows, cols) => i < rows - 1 && j < cols - 1;
+const hasD = (i, j, rows, cols) => i > 0 && j < cols - 1;
+DYSC.tableSheet({
+  store: 'dyscsheet.gamma.v2',
+  type: 'dyscsheet-gamma',
+  version: 2,
+  noun: 'gamma sheet',
+  fileName: 'dyscsheet-gamma.json',
+  corner: 'gamma',
+  margins: false,
+  // In twos, so each sum sits over its part in the toolbar. In the table, C and D are short for
+  // concordant and discordant, which keeps the cells narrow.
+  slots: [
+    { key: 'fo', name: 'f<sub>o</sub>', say: 'f o', title: 'f<sub>o</sub>: observed' },
+    null,
+    { key: 'cs', name: 'concordant sum', tag: 'C sum', say: 'concordant sum', title: 'Concordant sums', has: hasC },
+    { key: 'cp', name: 'CP part', say: 'C P part', title: 'CP parts', has: hasC },
+    { key: 'ds', name: 'discordant sum', tag: 'D sum', say: 'discordant sum', title: 'Discordant sums', has: hasD },
+    { key: 'dp', name: 'DP part', say: 'D P part', title: 'DP parts', has: hasD },
+  ],
+  below: [
+    ['CP =', 'cpt', 'C P'],
+    ['DP =', 'dpt', 'D P'],
+    ['CP − DP =', 'diff', 'C P minus D P'],
+    ['CP + DP =', 'sum', 'C P plus D P'],
+    ['γ =', 'gamma', 'Gamma'],
+  ],
+  // Tab goes: names, every fo, then concordant from the top-left cell across each row and down,
+  // then discordant from the bottom-left cell across each row and up, then the totals and γ.
+  tabOrder: (rows, cols) => {
+    const R = [...Array(rows).keys()], C = [...Array(cols).keys()];
+    const cells = (rowOrder, keys) => rowOrder.flatMap((i) => C.flatMap((j) => keys.map((k) => `${k}-${i}-${j}`)));
+    return [...C.map((j) => `cn-${j}`), ...R.map((i) => `rn-${i}`),
+      ...cells(R, ['fo']), ...cells(R, ['cs', 'cp']), ...cells([...R].reverse(), ['ds', 'dp']),
+      'cpt', 'dpt', 'diff', 'sum', 'gamma'];
+  },
+  marks: ['is-group'],
+  // Concordant: rows below, columns to the right. Discordant: rows above, columns to the right.
+  // A plum border marks the numbers that box is made from: a sum's fo boxes, a part's home fo and its sum,
+  // and below the table, CP from the CP parts, DP from the DP parts, CP − DP and CP + DP from CP and DP,
+  // and γ from CP − DP and CP + DP.
+  onFocus: ({ slot, i, j, cells, mark }) => {
+    const from = { cpt: ['[data-k^="cp-"]'], dpt: ['[data-k^="dp-"]'], diff: ['cpt', 'dpt'], sum: ['cpt', 'dpt'], gamma: ['diff', 'sum'] }[slot];
+    if (from) { from.forEach(mark); return; }
+    const up = { cs: false, cp: false, ds: true, dp: true }[slot];
+    if (up === undefined) return;
+    cells.forEach((c) => {
+      const r = +c.dataset.i, k = +c.dataset.j;
+      if (!((up ? r < i : r > i) && k > j)) return;
+      c.classList.add('is-group');
+      if (slot === 'cs' || slot === 'ds') mark(`fo-${r}-${k}`);
+    });
+    if (slot === 'cp') { mark(`fo-${i}-${j}`); mark(`cs-${i}-${j}`); }
+    if (slot === 'dp') { mark(`fo-${i}-${j}`); mark(`ds-${i}-${j}`); }
+  },
+});
+</script>
+</body>
+</html>

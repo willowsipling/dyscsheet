@@ -114,6 +114,19 @@ body {
   border-color: transparent;
   border-radius: 0.375rem;
 }
+/* Links in a menu (Sheets) look like the menu's buttons. */
+.topbar .menu a.menu-item {
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  color: var(--pink-800);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+.topbar .menu a.menu-item[aria-current="page"] {
+  font-weight: 700;
+}
 .topbar .menu .menu-item:hover {
   background: var(--pink-100);
   border-color: var(--pink-500);
@@ -554,6 +567,21 @@ kbd {
   font-size: 0.8em;
   padding: 0 4px;
 }
+/* The add-at-the-end buttons under the last line. */
+.sheet-end .end-pad {
+  visibility: hidden;
+}
+.end-tools {
+  display: flex;
+  gap: 4px;
+  padding: 6px 14px 0; /* the grid's side room, so the buttons start under its first cell */
+  font-size: calc(1rem * var(--z));
+}
+.end-tools button {
+  font-size: 1.1em;
+  min-width: 2em;
+  padding: 2px 4px;
+}
 .line-tools .line-del.is-confirm {
   background: var(--caution);
   color: #fff;
@@ -947,6 +975,26 @@ table.x {
   background: #ffe36e;
   box-shadow: inset 0 0 0 3px var(--pink-700);
 }
+/* Gamma: the concordant or discordant cells for the box you're in. */
+.x .is-group {
+  background: #d6e6ff;
+  box-shadow: inset 0 0 0 2px #3f6fb8;
+}
+.x .is-group .slot {
+  background: transparent;
+}
+.slot.gap {
+  visibility: hidden;
+}
+/* Gamma: the boxes the one you're in is made from. */
+.ct-main .box.is-input {
+  border-color: #c34189;
+  box-shadow: 0 0 0 3px #c34189;
+}
+/* A cell with nothing to fill in (Gamma's left-out boxes in matched tables). */
+.x td:empty {
+  background: var(--pink-50);
+}
 /* The exact box you're in, inside the crosshair. */
 .ct-main .is-spot,
 .x .is-row .slot.is-spot, .x .is-col .slot.is-spot {
@@ -962,6 +1010,10 @@ table.x {
 }
 
 @media print {
+  /* Print the table sheets at full size, whatever the zoom on screen. */
+  .ct-main {
+    zoom: 1 !important;
+  }
   html, body {
     height: auto;
     overflow: visible;
@@ -971,7 +1023,7 @@ table.x {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
   }
-  .topbar, .handle, .line-tools, .compiled-head .toggle {
+  .topbar, .handle, .line-tools, .sheet-end, .compiled-head .toggle {
     display: none !important;
   }
   .sheet-scroll, .grid-scroll, .compiled-body {
