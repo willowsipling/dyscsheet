@@ -120,7 +120,7 @@
   }
 
   function render() {
-    const below = `<div class="below">${slot('∑ χ² =', 'chi', 'Chi-square')}${slot('df =', 'df', 'Degrees of freedom')}</div>`;
+    const below = `<div class="below">${slot('∑ χ² =', 'chi', 'Chi-square')}${slot('df =', 'df', 'Degrees of freedom')}${slot('critical value =', 'crit', 'Critical value')}</div>`;
     if (ct.layout === 'a') {
       $('main').innerHTML = frame((i, j) => `<td class="a-cell" data-i="${i}" data-j="${j}">`
         + shown().map((s) => slot(SLOT_NAME[s], `${s}-${i}-${j}`, cellLabel(s, i, j))).join('') + '</td>', true) + below;
@@ -152,9 +152,15 @@
   });
 
   // Crosshair: the row and column around the box you're in. In matched tables, the same cell lights up in every table.
-  const clearCross = () => document.querySelectorAll('.is-row, .is-col, .is-same').forEach((el) => el.classList.remove('is-row', 'is-col', 'is-same'));
+  // It stays put when you switch to another window (say, your worksheet), so you can find your place again.
+  const clearCross = () => document.querySelectorAll('.is-row, .is-col, .is-same, .is-here, .is-spot')
+    .forEach((el) => el.classList.remove('is-row', 'is-col', 'is-same', 'is-here', 'is-spot'));
   $('main').addEventListener('focusin', (e) => {
     clearCross();
+    if (e.target.classList.contains('box')) e.target.classList.add('is-here');
+    // The exact spot: the labelled slot you're in, or the whole cell when it holds just a box.
+    const spot = e.target.closest('.slot, td, th');
+    if (spot) spot.classList.add('is-spot');
     const td = e.target.closest('td, th');
     const table = e.target.closest('table');
     if (!td || !table) return;
@@ -167,7 +173,9 @@
       document.querySelectorAll(`td[data-i="${i}"][data-j="${j}"]`).forEach((c) => c.classList.add('is-same'));
     }
   });
-  $('main').addEventListener('focusout', clearCross);
+  $('main').addEventListener('focusout', () => setTimeout(() => {
+    if (document.hasFocus() && !$('main').contains(document.activeElement)) clearCross();
+  }));
 
   // ---------- Toolbar ----------
   const change = (fn) => () => { fn(); store(); render(); };
